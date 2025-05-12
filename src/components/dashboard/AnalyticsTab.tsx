@@ -13,6 +13,7 @@ const AnalyticsTab: React.FC = () => {
     const fetchAnalytics = async () => {
       try {
         const data = await getUserAnalytics();
+        console.log('Analytics data:', data);
         setAnalytics(data);
       } catch (err) {
         console.error('Error fetching analytics:', err);

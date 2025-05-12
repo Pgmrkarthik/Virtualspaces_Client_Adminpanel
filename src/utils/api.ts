@@ -2,7 +2,9 @@ import axios from 'axios';
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: process.env.NODE_ENV === 'development' 
+    ? 'http://localhost:8080/v1' 
+    : 'https://api.virtualspaces.ai/v1',
 });
 
 // Add request interceptor for auth token

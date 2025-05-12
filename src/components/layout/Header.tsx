@@ -13,7 +13,7 @@ const Header: React.FC = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Booth Admin</h1>
+           <img className="header-logo-image" src="https://cdn11.bigcommerce.com/s-uc987c51/images/stencil/147x41/pe-art-pevoniaonlywhitelogo-adj_large_1739207860__96355.original.png" alt="Pevonia Global" title="Pevonia Global" />
             </div>
           </div>
           <div className="flex items-center space-x-4">

@@ -1,21 +1,21 @@
-export type MediaType = 'audio' | 'video' | 'image' | 'pdf';
+export type MediaType = 'AUDIO' | 'VIDEO' | 'IMAGE' | 'PDF';
 
 export interface MediaItem {
   id: string;
-  url: string;
-  type: MediaType;
+  fileurl: string;
+  mediaType: MediaType;
   boothId: string;
-  position: string;
+  mediaPosition: string;
   createdAt: string;
 }
 
 export interface Booth {
   id: string;
-  name: string;
+  name?: string;
   medias: {
-    audio: MediaItem[];
-    video: MediaItem[];
-    image: MediaItem[];
-    pdf: MediaItem[];
+    AUDIO: MediaItem[];
+    VIDEO: MediaItem[];
+    IMAGE: MediaItem[];
+    PDF: MediaItem[];
   };
 }

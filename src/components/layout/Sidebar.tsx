@@ -42,7 +42,7 @@ const Sidebar: React.FC = () => {
     <aside className="w-64 bg-white dark:bg-gray-800 shadow-md h-full">
       <div className="p-4">
         <div className="flex items-center justify-center p-4 mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Admin Dashboard</h2>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Dashboard</h2>
         </div>
         <nav className="space-y-1">
           {links.map((link) => (

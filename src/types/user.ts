@@ -3,10 +3,11 @@ export interface UserData {
   id: string;
   username: string;
   email: string;
-  createdAt: string;
-  lastLogin: string;
+  phoneNumber: string;
+  institution?: string;
   visitCount: number;
   location?: string;
+  createdAt: string;
 }
 
 export interface UserAnalytics {

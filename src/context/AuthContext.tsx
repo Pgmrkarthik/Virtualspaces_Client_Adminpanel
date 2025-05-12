@@ -50,7 +50,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      const { user, token } = await authService.login(credentials);
+      const { adminDetails, token } = await authService.login(credentials);
+      const user = {
+        id: adminDetails.id,
+        username: adminDetails.username,
+        email: adminDetails.email,
+        role: adminDetails.role
+      };
+      console.log('Login successful:', user);
+      console.log('Token received:', token);
       localStorage.setItem('token', token);
       setUser(user);
     } catch (err) {

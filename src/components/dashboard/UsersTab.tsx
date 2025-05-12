@@ -142,7 +142,7 @@ const UsersTab: React.FC = () => {
                   Visits
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Last Login
+                 Phone Number
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Actions
@@ -171,9 +171,9 @@ const UsersTab: React.FC = () => {
                       {user.visitCount}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                      {new Date(user.lastLogin).toLocaleDateString()} 
+                      {user.phoneNumber} 
                       <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                        {new Date(user.lastLogin).toLocaleTimeString()}
+                         {user.phoneNumber ? user.phoneNumber : 'N/A'} 
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -247,9 +247,9 @@ const UsersTab: React.FC = () => {
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">Login</td>
                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                        {new Date(selectedUser.lastLogin).toLocaleDateString()} 
+                        {new Date(selectedUser.createdAt).toLocaleDateString()} 
                         <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                          {new Date(selectedUser.lastLogin).toLocaleTimeString()}
+                          {new Date(selectedUser.createdAt).toLocaleTimeString()}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-gray-700 dark:text-gray-300">

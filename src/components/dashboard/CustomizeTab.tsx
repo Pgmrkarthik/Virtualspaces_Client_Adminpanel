@@ -4,6 +4,7 @@ import { getBooths, uploadMedia, deleteMedia } from '../../services/media';
 import type { Booth, MediaType } from '../../types/media';
 import Card from '../ui/Card';
 import Button from '../ui/button';
+import { BOOTH_NAME } from '../../utils/data';
 
 const CustomizeTab: React.FC = () => {
   const [booths, setBooths] = useState<Booth[]>([]);
@@ -12,7 +13,7 @@ const CustomizeTab: React.FC = () => {
   const [uploadLoading, setUploadLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [mediaType, setMediaType] = useState<MediaType>('image');
+  const [mediaType, setMediaType] = useState<MediaType>('IMAGE');
   const [position, setPosition] = useState<string>('1');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -20,6 +21,7 @@ const CustomizeTab: React.FC = () => {
     const fetchBooths = async () => {
       try {
         const data = await getBooths();
+        console.log('Booths data:', data);
         setBooths(data);
         if (data.length > 0) {
           setSelectedBooth(data[0].id);
@@ -140,11 +142,11 @@ const CustomizeTab: React.FC = () => {
                 required
               >
                 <option value="">Select a booth</option>
-                {booths.map((booth) => (
-                  <option key={booth.id} value={booth.id}>
-                    {booth.name}
+                
+                  <option key={booths[0].id} value={booths[0].id}>
+                    {BOOTH_NAME}
                   </option>
-                ))}
+               
               </select>
             </div>
             
@@ -207,7 +209,7 @@ const CustomizeTab: React.FC = () => {
       
       {/* Current Media Display */}
       {selectedBoothData && (
-        <Card title={`Current Media for ${selectedBoothData.name}`} className="mt-8">
+        <Card title={`Current Media`} className="mt-8">
           <div className="space-y-6">
             {['image', 'video', 'audio', 'pdf'].map((type) => (
               <div key={type} className="space-y-2">
@@ -216,11 +218,12 @@ const CustomizeTab: React.FC = () => {
                 {selectedBoothData.medias[type as MediaType]?.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {selectedBoothData.medias[type as MediaType].map((media) => (
+                      console.log("media",media),
                       <div key={media.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                         <div className="flex justify-between items-start mb-2">
                           <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">Position: {media.position}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{media.url}</p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">Position: {media.mediaPosition}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{media.fileurl}</p>
                           </div>
                           <Button
                             variant="danger"
@@ -232,20 +235,20 @@ const CustomizeTab: React.FC = () => {
                         </div>
                         
                         {/* Preview based on media type */}
-                        {type === 'image' && (
+                        {type === 'IMAGE' && (
                           <div className="mt-2 bg-gray-100 dark:bg-gray-800 rounded">
                             <img 
-                              src={media.url} 
-                              alt={`Position ${media.position}`} 
+                              src={media.fileurl} 
+                              alt={`Position ${media.mediaPosition}`} 
                               className="w-full h-auto object-contain rounded max-h-32"
                             />
                           </div>
                         )}
                         
-                        {type === 'video' && (
+                        {type === 'VIDEO' && (
                           <div className="mt-2">
                             <video 
-                              src={media.url} 
+                              src={media.fileurl} 
                               controls 
                               className="w-full h-auto max-h-32 rounded"
                             >
@@ -254,10 +257,10 @@ const CustomizeTab: React.FC = () => {
                           </div>
                         )}
                         
-                        {type === 'audio' && (
+                        {type === 'AUDIO' && (
                           <div className="mt-2">
                             <audio 
-                              src={media.url} 
+                              src={media.fileurl} 
                               controls 
                               className="w-full"
                             >
@@ -266,10 +269,10 @@ const CustomizeTab: React.FC = () => {
                           </div>
                         )}
                         
-                        {type === 'pdf' && (
+                        {type === 'PDF' && (
                           <div className="mt-2 flex justify-center">
                             <a 
-                              href={media.url} 
+                              href={media.fileurl} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="flex items-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded"
