@@ -9,9 +9,10 @@ export const uploadMedia = async (
   file: File
 ): Promise<MediaItem> => {
   const formData = new FormData();
-  formData.append('MediaType', mediaType);
-  formData.append('BoothId', boothId);
-  formData.append('Position', position);
+  console.log(mediaType);
+  formData.append('mediaType', mediaType.toUpperCase());
+  formData.append('boothId', BOOTHID);
+  formData.append('position', position);
   formData.append('file', file);
 
   const response = await api.post('/admin/upload', formData, {

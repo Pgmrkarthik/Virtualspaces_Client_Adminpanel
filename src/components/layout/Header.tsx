@@ -1,11 +1,11 @@
 // src/components/layout/Header.tsx
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
+// import { useTheme } from '../../context/ThemeContext';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  // const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
@@ -17,7 +17,7 @@ const Header: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <button
+            {/* <button
               onClick={toggleTheme}
               className="p-2 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
@@ -30,7 +30,7 @@ const Header: React.FC = () => {
                   <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
                 </svg>
               )}
-            </button>
+            </button> */}
             <div className="relative">
               <div className="flex items-center space-x-3">
                 <div className="text-sm font-medium text-gray-700 dark:text-gray-300">

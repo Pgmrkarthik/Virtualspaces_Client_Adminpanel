@@ -2,7 +2,8 @@ export type MediaType = 'AUDIO' | 'VIDEO' | 'IMAGE' | 'PDF';
 
 export interface MediaItem {
   id: string;
-  fileurl: string;
+  fileName?: string;
+  fileUrl: string;
   mediaType: MediaType;
   boothId: string;
   mediaPosition: string;

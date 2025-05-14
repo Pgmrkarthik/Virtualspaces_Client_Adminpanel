@@ -7,7 +7,7 @@ export interface UserData {
   institution?: string;
   visitCount: number;
   location?: string;
-  createdAt: string;
+  createdAt: string;  // ISO date string
 }
 
 export interface UserAnalytics {
@@ -17,4 +17,15 @@ export interface UserAnalytics {
     location: string;
     count: number;
   }[];
+}
+
+
+export interface Interaction {
+  id: string;
+  boothId: string;
+  visitorId: string;
+  actionElement: string;
+  actionType: string;
+  actionSubType: string;
+  createdAt: string; // ISO date string
 }
