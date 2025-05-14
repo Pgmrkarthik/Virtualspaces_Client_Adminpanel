@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User, LoginCredentials, RegisterCredentials } from '../types/auth';
-import  * as authService from '../services/auth';
+import * as authService from '../services/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -27,17 +27,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const checkAuthStatus = async () => {
+    // Check if user data is in localStorage instead of making API call
+    const checkAuthStatus = () => {
       try {
         const token = localStorage.getItem('token');
-        if (token) {
-          const userData = await authService.getCurrentUser();
+        const storedUser = localStorage.getItem('user');
+        
+        if (token && storedUser) {
+          // Parse the stored user data
+          const userData = JSON.parse(storedUser);
           setUser(userData);
         }
       } catch (err) {
         console.error('Authentication error:', err);
+        // Clear both token and user if there's an error
         localStorage.removeItem('token');
+        localStorage.removeItem('user');
       } finally {
         setLoading(false);
       }
@@ -51,16 +56,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     try {
       const { adminDetails, token } = await authService.login(credentials);
-      const user = {
+      const userData = {
         id: adminDetails.id,
         username: adminDetails.username,
         email: adminDetails.email,
         role: adminDetails.role
       };
-      console.log('Login successful:', user);
-      console.log('Token received:', token);
+      
+      // Store both token and user data in localStorage
       localStorage.setItem('token', token);
-      setUser(user);
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      setUser(userData);
     } catch (err) {
       setError((err as Error).message);
       throw err;
@@ -74,7 +81,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     try {
       const { user, token } = await authService.register(credentials);
+      
+      // Store both token and user data in localStorage
       localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
       setUser(user);
     } catch (err) {
       setError((err as Error).message);
@@ -85,7 +96,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    // Clear both token and user data from localStorage
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setUser(null);
   };
 
