@@ -5,10 +5,13 @@ import type { UserData, UserAnalytics, Interaction } from '../../types/user';
 import { formatInteractionDescription, getInteractionDetails } from '../../utils/Interactions';
 import Card from '../ui/Card';
 import Button from '../ui/button';
-import Dialog from '../ui/Dialog'
+import Dialog from '../ui/Dialog';
 import { getTimeAgo } from '../../utils/timeAgo';
 
 // import EmailAnalytics from './EmailAnalytics';
+
+// Define filter types
+type InteractionFilterType = 'all' | 'pdf' | 'video' | 'image' | 'login' | 'entry' | 'exit';
 
 const UsersTab: React.FC = () => {
   const [users, setUsers] = useState<UserData[]>([]);
@@ -16,7 +19,9 @@ const UsersTab: React.FC = () => {
   const [analytics, setAnalytics] = useState<UserAnalytics | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   
-  const [intractions, setInteractions] = useState<Interaction[]>([]);
+  const [interactions, setInteractions] = useState<Interaction[]>([]);
+  const [filteredInteractions, setFilteredInteractions] = useState<Interaction[]>([]);
+  const [selectedFilter, setSelectedFilter] = useState<InteractionFilterType>('all');
   const [analyticsLoading, setAnalyticsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -61,29 +66,87 @@ const UsersTab: React.FC = () => {
     fetchAnalytics();
   }, []);
 
+  // Apply filters to interactions whenever interactions or selectedFilter change
+  useEffect(() => {
+    if (selectedFilter === 'all') {
+      setFilteredInteractions(interactions);
+      return;
+    }
+
+    // Apply the filter
+    const filtered = interactions.filter(interaction => {
+      const actionType = interaction.actionType?.toLowerCase() || '';
+      
+      switch (selectedFilter) {
+        case 'pdf':
+          return actionType.includes('pdf');
+        case 'video':
+          return actionType.includes('video');
+        case 'image':
+          return actionType.includes('image');
+        case 'login':
+          return actionType.includes('login');
+        case 'entry':
+          return actionType.includes('entry');
+        case 'exit':
+          return actionType.includes('exit');
+        default:
+          return true;
+      }
+    });
+    
+    setFilteredInteractions(filtered);
+  }, [interactions, selectedFilter]);
+
   const handleUserSelect = async (user: UserData) => {
     if (selectedUser?.id === user.id) {
       setSelectedUser(null);
       setInteractions([]);
+      setFilteredInteractions([]);
       return;
     }
 
     setSelectedUser(user);
     setAnalyticsLoading(true);
+    setSelectedFilter('all'); // Reset filter when selecting a new user
 
     try {
-      // In a real implementation, you would fetch specific user interactions here
-      // For now, we're just using the selected user data
-
-      const interactions = await getIntractionsByUserId(user.id);
-      setInteractions(interactions);
+      const fetchedInteractions = await getIntractionsByUserId(user.id);
+      setInteractions(fetchedInteractions);
+      setFilteredInteractions(fetchedInteractions); // Initialize filtered interactions with all interactions
       setAnalyticsLoading(false);
-      console.log('User interactions:', interactions);
+      console.log('User interactions:', fetchedInteractions);
     } catch (err) {
       console.error('Error fetching user interactions:', err);
       setError('Failed to load user interactions');
       setAnalyticsLoading(false);
     }
+  };
+
+  // Helper function to count interaction types
+  const countInteractionsByType = (type: InteractionFilterType) => {
+    if (type === 'all') return interactions.length;
+    
+    return interactions.filter(interaction => {
+      const actionType = interaction.actionType?.toLowerCase() || '';
+      
+      switch (type) {
+        case 'pdf':
+          return actionType.includes('pdf');
+        case 'video':
+          return actionType.includes('video');
+        case 'image':
+          return actionType.includes('image');
+        case 'login':
+          return actionType.includes('login');
+        case 'entry':
+          return actionType.includes('entry');
+        case 'exit':
+          return actionType.includes('exit');
+        default:
+          return false;
+      }
+    }).length;
   };
 
   // Helper function to render the appropriate status badge
@@ -125,6 +188,38 @@ const UsersTab: React.FC = () => {
     (user.location && user.location.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  // Function to handle filter change
+  const handleFilterChange = (filter: InteractionFilterType) => {
+    setSelectedFilter(filter);
+  };
+
+  // Helper function to get formatted interaction name
+  const getFormattedInteractionName = (interaction: Interaction) => {
+    const actionType = interaction.actionType || '';
+    
+    if (actionType.toLowerCase().includes('pdf')) {
+      // Extract number if available, otherwise generate from the id
+      const match = actionType.match(/PDF_(\d+)/i);
+      if (match && match[1]) {
+        return `PDF_${match[1]}`;
+      }
+      // Use the last 1-2 characters of the ID to create a number
+      const idNumber = interaction.id.slice(-2).replace(/\D/g, '') || '1';
+      return `PDF_${idNumber}`;
+    }
+    
+    if (actionType.toLowerCase().includes('video')) {
+      const match = actionType.match(/video(\d+)/i);
+      if (match && match[1]) {
+        return `Video ${match[1]}`;
+      }
+      const idNumber = interaction.id.slice(-2).replace(/\D/g, '') || '1';
+      return `Video ${idNumber}`;
+    }
+    
+    return formatInteractionDescription(interaction);
+  };
+
   // Render user details component
   const renderUserDetails = (user: UserData) => {
     return (
@@ -146,8 +241,49 @@ const UsersTab: React.FC = () => {
               </div>
             </div>
 
+            {/* Interaction Filter Tabs */}
+            <div className="mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Recent Activities
+                <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+                  ({filteredInteractions.length} of {interactions.length} activities)
+                </span>
+              </h3>
+              
+              <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-700">
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'pdf', label: 'PDF' },
+                  { id: 'video', label: 'Video' },
+                  { id: 'image', label: 'Image' },
+                  { id: 'login', label: 'Login' },
+                  { id: 'entry', label: 'Entry' },
+                  { id: 'exit', label: 'Exit' },
+                ].map((filter) => {
+                  const count = countInteractionsByType(filter.id as InteractionFilterType);
+                  return (
+                    <button
+                      key={filter.id}
+                      onClick={() => handleFilterChange(filter.id as InteractionFilterType)}
+                      className={`px-4 py-2 border-b-2 ${
+                        selectedFilter === filter.id
+                          ? 'border-blue-500 text-blue-600 dark:text-blue-400 font-medium'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                      } flex items-center`}
+                    >
+                      {filter.label}
+                      {count > 0 && (
+                        <span className="ml-2 px-2 py-0.5 text-xs bg-orange-500 dark:bg-orange-400 rounded-full text-white">
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* User Interactions Table */}
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Activities</h3>
             {analyticsLoading ? (
               <div className="flex justify-center items-center h-32">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
@@ -169,11 +305,11 @@ const UsersTab: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
-                    {intractions.length > 0 ? (
-                      intractions.map((interaction) => (
+                    {filteredInteractions.length > 0 ? (
+                      filteredInteractions.map((interaction) => (
                         <tr key={interaction.id}>
                           <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                            {formatInteractionDescription(interaction)}
+                            {getFormattedInteractionName(interaction)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
                             {new Date(interaction.createdAt).toLocaleDateString()}
@@ -189,7 +325,9 @@ const UsersTab: React.FC = () => {
                     ) : (
                       <tr>
                         <td colSpan={3} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                          No interactions found for this user.
+                          {interactions.length > 0 
+                            ? `No ${selectedFilter} interactions found for this user.` 
+                            : 'No interactions found for this user.'}
                         </td>
                       </tr>
                     )}
