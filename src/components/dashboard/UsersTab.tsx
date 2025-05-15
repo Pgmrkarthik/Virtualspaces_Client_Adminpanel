@@ -6,6 +6,7 @@ import { formatInteractionDescription, getInteractionDetails } from '../../utils
 import Card from '../ui/Card';
 import Button from '../ui/button';
 import Dialog from '../ui/Dialog'
+import { getTimeAgo } from '../../utils/timeAgo';
 
 // import EmailAnalytics from './EmailAnalytics';
 
@@ -61,14 +62,11 @@ const UsersTab: React.FC = () => {
   }, []);
 
   const handleUserSelect = async (user: UserData) => {
-
     if (selectedUser?.id === user.id) {
       setSelectedUser(null);
       setInteractions([]);
       return;
     }
-
-
 
     setSelectedUser(user);
     setAnalyticsLoading(true);
@@ -127,6 +125,99 @@ const UsersTab: React.FC = () => {
     (user.location && user.location.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  // Render user details component
+  const renderUserDetails = (user: UserData) => {
+    return (
+      <tr>
+        <td colSpan={6} className="px-6 py-4 bg-gray-50 dark:bg-gray-800">
+          <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="bg-white dark:bg-gray-900 p-4 rounded-lg">
+                <div className="text-sm text-gray-600 dark:text-gray-400">User Since</div>
+                <div className="text-lg font-medium text-gray-900 dark:text-white">
+                  {new Date(user.createdAt).toLocaleDateString()}
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-900 p-4 rounded-lg">
+                <div className="text-sm text-gray-600 dark:text-gray-400">Total Visits</div>
+                <div className="text-lg font-medium text-gray-900 dark:text-white">
+                  {user.visitCount}
+                </div>
+              </div>
+            </div>
+
+            {/* User Interactions Table */}
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Activities</h3>
+            {analyticsLoading ? (
+              <div className="flex justify-center items-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-white dark:bg-gray-900">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Activity
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Date & Time
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Details
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
+                    {intractions.length > 0 ? (
+                      intractions.map((interaction) => (
+                        <tr key={interaction.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                            {formatInteractionDescription(interaction)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                            {new Date(interaction.createdAt).toLocaleDateString()}
+                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                              {new Date(interaction.createdAt).toLocaleTimeString()}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+                            {renderStatusBadge(interaction)}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={3} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                          No interactions found for this user.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Export or Actions section */}
+            <div className="mt-6 flex justify-end space-x-4">
+              <Button
+                variant="outline"
+                className="text-sm"
+                onClick={() => {
+                  // Logic for exporting user data
+                  alert('Export functionality will be implemented here');
+                }}
+                disabled
+              >
+                Export User Data
+              </Button>
+            </div>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -145,30 +236,6 @@ const UsersTab: React.FC = () => {
           <span className="block sm:inline"> {error}</span>
         </div>
       )}
-
-      {/* Analytics Summary */}
-      {/* {analytics && (
-        <Card title="User Analytics Overview" className="mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-              <p className="text-sm text-blue-600 dark:text-blue-300">Total Users</p>
-              <p className="text-2xl font-bold text-blue-700 dark:text-blue-200">{analytics.totalUsers}</p>
-            </div>
-            <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-              <p className="text-sm text-green-600 dark:text-green-300">Active Today</p>
-              <p className="text-2xl font-bold text-green-700 dark:text-green-200">{analytics.activeToday}</p>
-            </div>
-            <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
-              <p className="text-sm text-purple-600 dark:text-purple-300">New This Week</p>
-              <p className="text-2xl font-bold text-purple-700 dark:text-purple-200">{analytics.newThisWeek}</p>
-            </div>
-            <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg">
-              <p className="text-sm text-amber-600 dark:text-amber-300">Avg. Visits</p>
-              <p className="text-2xl font-bold text-amber-700 dark:text-amber-200">{analytics.averageVisits}</p>
-            </div>
-          </div>
-        </Card>
-      )} */}
 
       {/* Search and Filter */}
       <div className="mb-6">
@@ -207,7 +274,7 @@ const UsersTab: React.FC = () => {
                   Visits
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Phone Number
+                  Last Visit
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Actions
@@ -217,49 +284,50 @@ const UsersTab: React.FC = () => {
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
               {filteredUsers.length > 0 ? (
                 filteredUsers.map((user) => (
-                  <tr
-                    key={user.id}
-                    onClick={() => handleUserSelect(user)}
-                    className={`hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${selectedUser?.id === user.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-medium text-gray-900 dark:text-white">{user.username}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">ID: {user.id.slice(0, 8)}...</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                      {user.email}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                      {user.location || 'Unknown'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                      {user.visitCount}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                      {user.phoneNumber}
-                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                        {user.phoneNumber ? user.phoneNumber : 'N/A'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap flex space-x-2">
-                      
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleUserSelect(user);
-                        }}
-                        className="text-sm"
-                      >
-                       {selectedUser == user ? "Hide Details" : "View Details"} 
-                      </Button>
-                       <Button
+                  <React.Fragment key={user.id}>
+                    <tr
+                      onClick={() => handleUserSelect(user)}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${selectedUser?.id === user.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-medium text-gray-900 dark:text-white">{user.username}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">ID: {user.id.slice(0, 8)}...</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.location || 'Unknown'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.visitCount}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.phoneNumber}
+                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                          {user.recentExitTime ? getTimeAgo(user.recentExitTime) : 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap flex space-x-2">
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUserSelect(user);
+                          }}
+                          className="text-sm"
+                        >
+                          {selectedUser?.id === user.id ? "Hide Details" : "View Details"} 
+                        </Button>
+                        <Button
                           onClick={(e) => handleEnrichClick(e, user)}
                           className="text-sm bg-orange-500 hover:bg-orange-600 text-white"
                         >
                           Enrich User
                         </Button>
-                    </td>
-                  </tr>
+                      </td>
+                    </tr>
+                    {selectedUser?.id === user.id && renderUserDetails(user)}
+                  </React.Fragment>
                 ))
               ) : (
                 <tr>
@@ -273,8 +341,7 @@ const UsersTab: React.FC = () => {
         </div>
       </Card>
 
-
-        {/* Enrich Dialog */}
+      {/* Enrich Dialog */}
       {showEnrichDialog && enrichedUser && (
         <Dialog
           isOpen={showEnrichDialog}
@@ -289,115 +356,6 @@ const UsersTab: React.FC = () => {
           </div>
         </Dialog>
       )}
-
-
-
-
-      {/* User Interactions */}
-      {
-        selectedUser && (
-          <Card title={`${selectedUser.username}'s Interactions`} className="mt-6">
-            {analyticsLoading ? (
-              <div className="flex justify-center items-center h-32">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-              </div>
-            ) : (
-              <div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">User Since</div>
-                    <div className="text-lg font-medium text-gray-900 dark:text-white">
-                      {new Date(selectedUser.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Total Visits</div>
-                    <div className="text-lg font-medium text-gray-900 dark:text-white">
-                      {selectedUser.visitCount}
-                    </div>
-                  </div>
-                </div>
-
-                {/* User Interactions Table */}
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Activities</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-800">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                          Activity
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                          Date & Time
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                          Details
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
-                      {intractions.length > 0 ? (
-                        intractions.map((interaction) => (
-                          <tr key={interaction.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                              {formatInteractionDescription(interaction)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                              {new Date(interaction.createdAt).toLocaleDateString()}
-                              <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                                {new Date(interaction.createdAt).toLocaleTimeString()}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                              {renderStatusBadge(interaction)}
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={3} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                            No interactions found for this user.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Export or Actions section */}
-                <div className="mt-6 flex justify-end space-x-4">
-                  <Button
-                    variant="outline"
-                    className="text-sm"
-                    onClick={() => {
-                      // Logic for exporting user data
-                      alert('Export functionality will be implemented here');
-                    }}
-                    disabled
-                  >
-                    Export User Data
-                  </Button>
-                  {/* <Button
-                    variant="outline"
-                    className="text-sm text-red-600 border-red-600 hover:bg-red-50 dark:text-red-500 dark:border-red-500 dark:hover:bg-red-950/20"
-                    onClick={() => {
-                      // Logic for resetting password
-                      alert('Password reset functionality will be implemented here');
-                    }}
-                  >
-                    Reset Password
-                  </Button> */}
-                </div>
-              </div>
-            )}
-          </Card>
-
-        )
-      }
-
-
-
-
 
       {/* No users message */}
       {users.length === 0 && (

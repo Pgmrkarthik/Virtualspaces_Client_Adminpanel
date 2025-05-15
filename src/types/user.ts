@@ -8,6 +8,10 @@ export interface UserData {
   visitCount: number;
   location?: string;
   createdAt: string;  // ISO date string
+  recentEntryTime?: string; // ISO date string
+  recentExitTime?: string; // ISO date string 
+  totalWatchingMinutes?: number;
+
 }
 
 export interface UserAnalytics {

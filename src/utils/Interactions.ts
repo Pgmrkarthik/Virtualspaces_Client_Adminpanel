@@ -9,25 +9,25 @@ export const formatInteractionDescription = (interaction: Interaction): string =
   const element = interaction.actionElement;
   
   switch (interaction.actionType) {
-    case 'click':
-      if (element === 'pdf') {
-        return `Downloaded PDF`;
-      } else if (element === 'link') {
-        return `Clicked on link`;
-      } else if (element === 'button') {
-        return `Clicked button`;
-      } else {
-        return `Clicked on ${element}`;
-      }
+    // case 'click':
+    //   if (element === 'pdf') {
+    //     return `Downloaded PDF`;
+    //   } else if (element === 'link') {
+    //     return `Clicked on link`;
+    //   } else if (element === 'button') {
+    //     return `Clicked button`;
+    //   } else {
+    //     return `Clicked on ${element}`;
+    //   }
     
-    case 'view':
-      if (element.startsWith('booth')) {
-        return `Viewed booth`;
-      } else if (element === 'product') {
-        return `Viewed product details`;
-      } else {
-        return `Viewed ${element}`;
-      }
+    // case 'view':
+    //   if (element.startsWith('booth')) {
+    //     return `Viewed booth`;
+    //   } else if (element === 'product') {
+    //     return `Viewed product details`;
+    //   } else {
+    //     return `Viewed ${element}`;
+    //   }
     
     case 'watch':
       return `Watched video`;
@@ -42,7 +42,7 @@ export const formatInteractionDescription = (interaction: Interaction): string =
       return 'Logged out';
       
     default:
-      return `${interaction.actionType} ${element}`;
+      return `${interaction.actionType} ${interaction.actionSubType}`;
   }
 };
 
