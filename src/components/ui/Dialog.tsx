@@ -1,6 +1,14 @@
 import React from 'react';
 
-const Dialog = ({ isOpen, onClose, title, children, size = 'md' }) => {
+interface DialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+}
+
+const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, title, children, size = 'md' }) => {
   if (!isOpen) return null;
   
   // Size classes
