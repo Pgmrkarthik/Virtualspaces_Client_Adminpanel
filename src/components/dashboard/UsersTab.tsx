@@ -7,6 +7,7 @@ import Card from '../ui/Card';
 import Button from '../ui/button';
 import Dialog from '../ui/Dialog';
 import { getTimeAgo } from '../../utils/timeAgo';
+import { convertUTCToLocalTime } from '../../utils/timeUtils';
 
 // import EmailAnalytics from './EmailAnalytics';
 
@@ -230,7 +231,7 @@ const UsersTab: React.FC = () => {
               <div className="bg-white dark:bg-gray-900 p-4 rounded-lg">
                 <div className="text-sm text-gray-600 dark:text-gray-400">User Since</div>
                 <div className="text-lg font-medium text-gray-900 dark:text-white">
-                  {new Date(user.createdAt).toLocaleDateString()}
+                  {convertUTCToLocalTime(user.createdAt)}
                 </div>
               </div>
               <div className="bg-white dark:bg-gray-900 p-4 rounded-lg">
@@ -411,9 +412,7 @@ const UsersTab: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Visits
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Last Visit
-                </th>
+             
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Actions
                 </th>
@@ -437,14 +436,10 @@ const UsersTab: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {user.location || 'Unknown'}
                       </td>
+                     
                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {user.visitCount}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                        {user.phoneNumber}
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                          {user.recentExitTime ? getTimeAgo(user.recentExitTime) : 'N/A'}
-                        </span>
+                        
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap flex space-x-2">
                         <Button
