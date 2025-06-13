@@ -1,7 +1,7 @@
 // src/components/dashboard/UsersTab.tsx
 import React, { useState, useEffect } from 'react';
-import { getAllUsers, getIntractionsByUserId, getUserAnalytics } from '../../services/user';
-import type { UserData, UserAnalytics, Interaction } from '../../types/user';
+import { getAllUsers, getIntractionsByUserId, getUserAnalytics, getSpendingTimeByUserId } from '../../services/user';
+import type { UserData, UserAnalytics, Interaction, TimeSpent } from '../../types/user';
 import { formatInteractionDescription, getInteractionDetails } from '../../utils/Interactions';
 import Card from '../ui/Card';
 import Button from '../ui/button';
@@ -19,7 +19,7 @@ const UsersTab: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [analytics, setAnalytics] = useState<UserAnalytics | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  
+
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [filteredInteractions, setFilteredInteractions] = useState<Interaction[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<InteractionFilterType>('all');
@@ -29,6 +29,7 @@ const UsersTab: React.FC = () => {
 
   const [showEnrichDialog, setShowEnrichDialog] = useState(false);
   const [enrichedUser, setEnrichedUser] = useState<UserData | null>(null);
+  const [totalTimeSpent, setTotalTimeSpent] = useState<TimeSpent[]>([]);
 
   const handleEnrichClick = (e: React.MouseEvent<HTMLButtonElement>, user: UserData) => {
     e.stopPropagation();
@@ -77,7 +78,7 @@ const UsersTab: React.FC = () => {
     // Apply the filter
     const filtered = interactions.filter(interaction => {
       const actionType = interaction.actionType?.toLowerCase() || '';
-      
+
       switch (selectedFilter) {
         case 'pdf':
           return actionType.includes('pdf');
@@ -95,7 +96,7 @@ const UsersTab: React.FC = () => {
           return true;
       }
     });
-    
+
     setFilteredInteractions(filtered);
   }, [interactions, selectedFilter]);
 
@@ -104,17 +105,22 @@ const UsersTab: React.FC = () => {
       setSelectedUser(null);
       setInteractions([]);
       setFilteredInteractions([]);
+      setTotalTimeSpent([]); // Reset
       return;
     }
 
     setSelectedUser(user);
     setAnalyticsLoading(true);
-    setSelectedFilter('all'); // Reset filter when selecting a new user
+    setSelectedFilter('all');
+    setTotalTimeSpent([]); // Reset
 
     try {
       const fetchedInteractions = await getIntractionsByUserId(user.id);
       setInteractions(fetchedInteractions);
-      setFilteredInteractions(fetchedInteractions); // Initialize filtered interactions with all interactions
+      setFilteredInteractions(fetchedInteractions);
+      // Fetch total time spent
+      const res = await getSpendingTimeByUserId(user.id);
+      setTotalTimeSpent(res);
       setAnalyticsLoading(false);
       console.log('User interactions:', fetchedInteractions);
     } catch (err) {
@@ -127,10 +133,10 @@ const UsersTab: React.FC = () => {
   // Helper function to count interaction types
   const countInteractionsByType = (type: InteractionFilterType) => {
     if (type === 'all') return interactions.length;
-    
+
     return interactions.filter(interaction => {
       const actionType = interaction.actionType?.toLowerCase() || '';
-      
+
       switch (type) {
         case 'pdf':
           return actionType.includes('pdf');
@@ -197,7 +203,7 @@ const UsersTab: React.FC = () => {
   // Helper function to get formatted interaction name
   const getFormattedInteractionName = (interaction: Interaction) => {
     const actionType = interaction.actionType || '';
-    
+
     if (actionType.toLowerCase().includes('pdf')) {
       // Extract number if available, otherwise generate from the id
       const match = actionType.match(/PDF_(\d+)/i);
@@ -208,7 +214,7 @@ const UsersTab: React.FC = () => {
       const idNumber = interaction.id.slice(-2).replace(/\D/g, '') || '1';
       return `PDF_${idNumber}`;
     }
-    
+
     if (actionType.toLowerCase().includes('video')) {
       const match = actionType.match(/video(\d+)/i);
       if (match && match[1]) {
@@ -217,8 +223,25 @@ const UsersTab: React.FC = () => {
       const idNumber = interaction.id.slice(-2).replace(/\D/g, '') || '1';
       return `Video ${idNumber}`;
     }
-    
+
     return formatInteractionDescription(interaction);
+  };
+
+  // Helper to format ms to hh:mm:ss
+  const formatDuration = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours}h ${minutes}m ${seconds}s`;
+  };
+
+  // Returns formatted total duration spent on "Space" (actionType === 'Space', case-insensitive)
+  const getTotalSpaceHours = (totalTimeSpent: TimeSpent[]) => {
+    const totalMs = totalTimeSpent
+      .filter(item => item.actionType && item.actionType.toLowerCase() === 'space')
+      .reduce((sum, item) => sum + (item.duration || 0), 0);
+    return formatDuration(totalMs);
   };
 
   // Render user details component
@@ -227,7 +250,7 @@ const UsersTab: React.FC = () => {
       <tr>
         <td colSpan={6} className="px-6 py-4 bg-gray-50 dark:bg-gray-800">
           <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-white dark:bg-gray-900 p-4 rounded-lg">
                 <div className="text-sm text-gray-600 dark:text-gray-400">User Since</div>
                 <div className="text-lg font-medium text-gray-900 dark:text-white">
@@ -240,7 +263,40 @@ const UsersTab: React.FC = () => {
                   {user.visitCount}
                 </div>
               </div>
+              <div className="bg-white dark:bg-gray-900 p-4 rounded-lg">
+                <div className="text-sm text-gray-600 dark:text-gray-400">Total Hours Spent</div>
+                <div className="text-lg font-medium text-gray-900 dark:text-white">
+                 {getTotalSpaceHours(totalTimeSpent)}
+                </div>
+              </div>
             </div>
+
+            <div className="mb-4">
+              <div className="font-semibold text-gray-800 dark:text-gray-200 mb-2">Time Spent:</div>
+              {totalTimeSpent.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {totalTimeSpent.map((timeSpent) => (
+                    <div
+                      key={timeSpent.id}
+                      className="bg-white dark:bg-gray-900 rounded-lg shadow p-4 flex flex-col items-center border border-gray-200 dark:border-gray-700"
+                    >
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                        {timeSpent.actionType === 'enter' ? 'Space' : timeSpent.actionType}
+                      </div>
+                      <div className="text-lg font-bold text-blue-600 dark:text-blue-300">
+                        {formatDuration(timeSpent.duration)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-gray-700 dark:text-gray-300">Not available</div>
+              )}
+            </div>
+
+
+
+
 
             {/* Interaction Filter Tabs */}
             <div className="mb-4">
@@ -250,7 +306,7 @@ const UsersTab: React.FC = () => {
                   ({filteredInteractions.length} of {interactions.length} activities)
                 </span>
               </h3>
-              
+
               <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-700">
                 {[
                   { id: 'all', label: 'All' },
@@ -266,11 +322,10 @@ const UsersTab: React.FC = () => {
                     <button
                       key={filter.id}
                       onClick={() => handleFilterChange(filter.id as InteractionFilterType)}
-                      className={`px-4 py-2 border-b-2 ${
-                        selectedFilter === filter.id
-                          ? 'border-blue-500 text-blue-600 dark:text-blue-400 font-medium'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                      } flex items-center`}
+                      className={`px-4 py-2 border-b-2 ${selectedFilter === filter.id
+                        ? 'border-blue-500 text-blue-600 dark:text-blue-400 font-medium'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                        } flex items-center`}
                     >
                       {filter.label}
                       {count > 0 && (
@@ -326,8 +381,8 @@ const UsersTab: React.FC = () => {
                     ) : (
                       <tr>
                         <td colSpan={3} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                          {interactions.length > 0 
-                            ? `No ${selectedFilter} interactions found for this user.` 
+                          {interactions.length > 0
+                            ? `No ${selectedFilter} interactions found for this user.`
                             : 'No interactions found for this user.'}
                         </td>
                       </tr>
@@ -356,14 +411,6 @@ const UsersTab: React.FC = () => {
       </tr>
     );
   };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -407,12 +454,26 @@ const UsersTab: React.FC = () => {
                   Email
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Spa Business Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  City
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  State
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Contact Title
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Phone
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Location
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Visits
                 </th>
-             
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Actions
                 </th>
@@ -434,12 +495,25 @@ const UsersTab: React.FC = () => {
                         {user.email}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.phoneNumber || '—'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.contactTitle || '—'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.city || '—'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.state || '—'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.spaBusinessName || '—'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {user.location || 'Unknown'}
                       </td>
-                     
                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {user.visitCount}
-                        
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap flex space-x-2">
                         <Button
@@ -449,7 +523,7 @@ const UsersTab: React.FC = () => {
                           }}
                           className="text-sm"
                         >
-                          {selectedUser?.id === user.id ? "Hide Details" : "View Details"} 
+                          {selectedUser?.id === user.id ? "Hide Details" : "View Details"}
                         </Button>
                         <Button
                           onClick={(e) => handleEnrichClick(e, user)}
@@ -464,7 +538,7 @@ const UsersTab: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={11} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                     No users found. Try a different search term.
                   </td>
                 </tr>

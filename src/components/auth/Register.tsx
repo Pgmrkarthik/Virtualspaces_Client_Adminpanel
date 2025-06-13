@@ -10,7 +10,7 @@ const Register: React.FC = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    secretCode: '',
+    applicationCode: '',
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const { register, loading } = useAuth();
@@ -48,25 +48,29 @@ const Register: React.FC = () => {
       newErrors.confirmPassword = 'Passwords do not match';
     }
     
-    if (!formData.secretCode) {
-      newErrors.secretCode = 'Secret code is required';
+    if (!formData.applicationCode) {
+      newErrors.applicationCode = 'Application code is required';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+
+    // Prevent default form submission
+    console.log("Form Data:", formData);
+
     e.preventDefault();
     
     if (!validateForm()) return;
     
     try {
       await register({
-        username: formData.username,
+        name: formData.username,
         email: formData.email,
         password: formData.password,
-        secretCode: formData.secretCode,
+        applicationCode: formData.applicationCode,
       });
       navigate('/dashboard');
     } catch (err) {
@@ -96,9 +100,9 @@ const Register: React.FC = () => {
           id="username"
           value={formData.username}
           onChange={handleChange}
-          label="Username"
+          label="Name"
           placeholder="admin_user"
-          error={errors.username}
+          error={errors.name}
           required
         />
         
@@ -139,13 +143,13 @@ const Register: React.FC = () => {
         />
         
         <Input
-          name="secretCode"
-          id="secretCode"
-          value={formData.secretCode}
+          name="applicationCode"
+          id="applicationCode"
+          value={formData.applicationCode}
           onChange={handleChange}
-          label="App Secret Code"
-          placeholder="Enter the app secret code"
-          error={errors.secretCode}
+          label="App Code"
+          placeholder="Enter the app code"
+          error={errors.applicationCode}
           required
         />
 

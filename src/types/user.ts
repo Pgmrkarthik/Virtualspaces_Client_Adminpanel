@@ -3,8 +3,15 @@ export interface UserData {
   id: string;
   username: string;
   email: string;
-  phoneNumber: string;
-  institution?: string;
+  phoneNumber?: string;
+  spaBusinessName?: string;
+
+  contactTitle: string
+
+  city?: string;
+
+  state?: string;
+
   visitCount: number;
   location?: string;
   createdAt: string;  // ISO date string
@@ -32,4 +39,13 @@ export interface Interaction {
   actionType: string;
   actionSubType: string;
   createdAt: string; // ISO date string
+}
+
+
+export interface TimeSpent {
+  id: string;
+  visitorId: string;
+  elementType: string;
+  actionType: string;
+  duration: number; // Duration in seconds
 }
