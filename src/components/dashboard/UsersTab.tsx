@@ -1,7 +1,7 @@
 // src/components/dashboard/UsersTab.tsx
 import React, { useState, useEffect } from 'react';
 import { getAllUsers, getIntractionsByUserId, getUserAnalytics, getSpendingTimeByUserId } from '../../services/user';
-import type { UserData, UserAnalytics, Interaction, TimeSpent } from '../../types/user';
+import type { UserData, UserAnalytics, Interaction, TimeSpent, PaginationParams, PaginatedUsers } from '../../types/user';
 import { formatInteractionDescription, getInteractionDetails } from '../../utils/Interactions';
 import Card from '../ui/Card';
 import Button from '../ui/button';
@@ -12,10 +12,12 @@ import { convertUTCToLocalTime } from '../../utils/timeUtils';
 // import EmailAnalytics from './EmailAnalytics';
 
 // Define filter types
-type InteractionFilterType = 'all' | 'pdf' | 'video' | 'image' | 'login' | 'entry' | 'exit';
+type InteractionFilterType = 'all' | 'pdf' | 'video' | 'image' | 'session' | 'entry' | 'exit';
+
+
 
 const UsersTab: React.FC = () => {
-  const [users, setUsers] = useState<UserData[]>([]);
+  const [users, setUsers] = useState<PaginatedUsers>();
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [analytics, setAnalytics] = useState<UserAnalytics | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -31,6 +33,13 @@ const UsersTab: React.FC = () => {
   const [enrichedUser, setEnrichedUser] = useState<UserData | null>(null);
   const [totalTimeSpent, setTotalTimeSpent] = useState<TimeSpent[]>([]);
 
+   const [paginationParams, setPaginationParams] = useState<PaginationParams>({
+    page: 0,
+    size: 10,
+    sortBy: 'recentEntryTime',
+    sortDir: 'desc',
+  });
+
   const handleEnrichClick = (e: React.MouseEvent<HTMLButtonElement>, user: UserData) => {
     e.stopPropagation();
     setEnrichedUser(user);
@@ -44,7 +53,7 @@ const UsersTab: React.FC = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const data = await getAllUsers();
+        const data = await getAllUsers(paginationParams);
         setUsers(data);
       } catch (err) {
         console.error('Error fetching users:', err);
@@ -66,7 +75,161 @@ const UsersTab: React.FC = () => {
 
     fetchUsers();
     fetchAnalytics();
-  }, []);
+  }, [paginationParams]);
+
+  // Pagination effect 
+
+  const handlePageChange = (newPage: number) => {
+    setPaginationParams(prev => ({ ...prev, page: newPage }));
+  };
+
+  const handleSizeChange = (newSize: number) => {
+    setPaginationParams(prev => ({ ...prev, size: newSize, page: 0 }));
+  };
+
+  const handleSortChange = (sortBy: string, sortDir: 'asc' | 'desc') => {
+    setPaginationParams(prev => ({ ...prev, sortBy, sortDir, page: 0 }));
+  };
+
+
+
+  const renderPagination = () => {
+    if (!users || users.totalPages <= 1) return null;
+
+    const currentPage = users.number;
+    const totalPages = users.totalPages;
+    const maxVisiblePages = 5;
+
+    let startPage = Math.max(0, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages - 1, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(0, endPage - maxVisiblePages + 1);
+    }
+
+    const pages = [];
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return (
+      <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 sm:px-6">
+        <div className="flex-1 flex justify-between sm:hidden">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={users.first}
+            className="relative inline-flex items-center px-2 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={users.last}
+            className="ml-3 relative inline-flex items-center px-2 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
+          >
+            Next
+          </button>
+        </div>
+        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+          <div className="flex items-center space-x-4">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              Showing{' '}
+              <span className="font-medium">{currentPage * users.size + 1}</span>
+              {' '}to{' '}
+              <span className="font-medium">
+                {Math.min((currentPage + 1) * users.size, users.totalElements)}
+              </span>
+              {' '}of{' '}
+              <span className="font-medium">{users.totalElements}</span>
+              {' '}results
+            </p>
+            <div className="flex items-center space-x-2">
+              <label htmlFor="pageSize" className="text-sm text-gray-700 dark:text-gray-300">
+                Show:
+              </label>
+              <select
+                id="pageSize"
+                value={users.size}
+                onChange={(e) => handleSizeChange(Number(e.target.value))}
+                className="border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+              <button
+                onClick={() => handlePageChange(0)}
+                disabled={users.first}
+                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                First
+              </button>
+              
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={users.first}
+                className="relative inline-flex items-center px-2 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+
+              {pages.map(page => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                    page === currentPage
+                      ? 'z-10 bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {page + 1}
+                </button>
+              ))}
+
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={users.last}
+                className="relative inline-flex items-center px-2 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+
+              <button
+                onClick={() => handlePageChange(totalPages - 1)}
+                disabled={users.last}
+                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Last
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // Apply filters to interactions whenever interactions or selectedFilter change
   useEffect(() => {
@@ -86,8 +249,8 @@ const UsersTab: React.FC = () => {
           return actionType.includes('video');
         case 'image':
           return actionType.includes('image');
-        case 'login':
-          return actionType.includes('login');
+        case 'session':
+          return actionType.includes('space');
         case 'entry':
           return actionType.includes('entry');
         case 'exit':
@@ -144,8 +307,8 @@ const UsersTab: React.FC = () => {
           return actionType.includes('video');
         case 'image':
           return actionType.includes('image');
-        case 'login':
-          return actionType.includes('login');
+        case 'session':
+          return actionType.includes('space');
         case 'entry':
           return actionType.includes('entry');
         case 'exit':
@@ -189,7 +352,7 @@ const UsersTab: React.FC = () => {
     );
   };
 
-  const filteredUsers = users.filter(user =>
+  const filteredUsers = users?.content.filter(user =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (user.location && user.location.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -313,9 +476,8 @@ const UsersTab: React.FC = () => {
                   { id: 'pdf', label: 'PDF' },
                   { id: 'video', label: 'Video' },
                   { id: 'image', label: 'Image' },
-                  { id: 'login', label: 'Login' },
-                  { id: 'entry', label: 'Entry' },
-                  { id: 'exit', label: 'Exit' },
+                  { id: 'session', label: 'session' },
+                  
                 ].map((filter) => {
                   const count = countInteractionsByType(filter.id as InteractionFilterType);
                   return (
@@ -442,7 +604,7 @@ const UsersTab: React.FC = () => {
       </div>
 
       {/* Users Table */}
-      <Card title={`Users (${filteredUsers.length})`}>
+      <Card title={`Users (${(filteredUsers ?? []).length})`}>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-800">
@@ -456,18 +618,17 @@ const UsersTab: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Spa Business Name
                 </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Contact Title
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   City
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   State
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Contact Title
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Phone
-                </th>
+
+                
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Location
                 </th>
@@ -480,8 +641,8 @@ const UsersTab: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
-              {filteredUsers.length > 0 ? (
-                filteredUsers.map((user) => (
+              {(filteredUsers ?? []).length > 0 ? (
+                (filteredUsers ?? []).map((user) => (
                   <React.Fragment key={user.id}>
                     <tr
                       onClick={() => handleUserSelect(user)}
@@ -494,21 +655,26 @@ const UsersTab: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {user.email}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {user.phoneNumber || '—'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                        {user.contactTitle || '—'}
+                       {/* <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.spaBusinessName || '—'}
+                      </td> */}
+                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.state || '—'}
                       </td>
+                     
+                    
                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {user.city || '—'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                        {user.state || '—'}
+
+                        <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.contactTitle || '—'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                        {user.spaBusinessName || '—'}
-                      </td>
+                     
+                     
                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {user.location || 'Unknown'}
                       </td>
@@ -546,6 +712,7 @@ const UsersTab: React.FC = () => {
             </tbody>
           </table>
         </div>
+          {renderPagination()}
       </Card>
 
       {/* Enrich Dialog */}
@@ -565,7 +732,7 @@ const UsersTab: React.FC = () => {
       )}
 
       {/* No users message */}
-      {users.length === 0 && (
+      {users && users.content.length === 0 && (
         <div className="mt-8 text-center p-6 bg-gray-100 dark:bg-gray-800 rounded-lg">
           <p className="text-gray-600 dark:text-gray-300">No users available.</p>
         </div>

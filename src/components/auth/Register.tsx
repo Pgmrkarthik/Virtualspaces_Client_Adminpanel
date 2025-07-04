@@ -84,7 +84,12 @@ const Register: React.FC = () => {
   return (
     <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold">Admin Registration</h1>
+        <img
+          src="https://cdn11.bigcommerce.com/s-uc987c51/images/stencil/147x41/pe-art-pevoniaonlywhitelogo-adj_large_1739207860__96355.original.png"
+          alt="Pevonia Global"
+          className="mx-auto mb-4 h-10"
+        />
+        <h1 className="text-2xl">Admin Registration</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-2">Create a new admin account</p>
       </div>
       

@@ -49,3 +49,68 @@ export interface TimeSpent {
   actionType: string;
   duration: number; // Duration in seconds
 }
+
+
+
+export interface PaginatedResponse<T> {
+  content: T[];
+  pageable: {
+    sort: {
+      empty: boolean;
+      sorted: boolean;
+      unsorted: boolean;
+    };
+    pageNumber: number;
+    pageSize: number;
+    offset: number;
+    paged: boolean;
+    unpaged: boolean;
+  };
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+  first: boolean;
+  numberOfElements: number;
+  size: number;
+  number: number;
+  sort: {
+    empty: boolean;
+    sorted: boolean;
+    unsorted: boolean;
+  };
+  empty: boolean;
+}
+
+export interface PaginationParams {
+  page: number;
+  size: number;
+  sortBy: string;
+  sortDir: 'asc' | 'desc';
+}
+
+export interface PaginatedUsers {
+  content: UserData[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+  first: boolean;
+  last: boolean;
+}
+
+
+export interface ElementInteractionCount {
+  element: string;
+  count: number;
+}
+
+export interface ElementTimeSpent {
+  elementType: string;
+  totalTimeSpent: number;
+}
+
+export interface FilterOptions {
+  period: 'today' | 'lastWeek' | 'lastMonth' | 'alltime' | 'custom';
+  startDate?: string | null;
+  endDate?: string | null;
+}

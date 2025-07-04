@@ -1,23 +1,37 @@
 // src/components/layout/Header.tsx
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-// import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { user, logout } = useAuth();
-  // const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
+            {/* Mobile menu button */}
+            <button
+              className="md:hidden mr-3 p-2 rounded text-gray-700 dark:text-gray-200 focus:outline-none"
+              onClick={onMenuClick}
+              aria-label="Open sidebar"
+            >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
             <div className="flex-shrink-0 flex items-center">
-           <img className="header-logo-image" src="https://cdn11.bigcommerce.com/s-uc987c51/images/stencil/147x41/pe-art-pevoniaonlywhitelogo-adj_large_1739207860__96355.original.png" alt="Pevonia Global" title="Pevonia Global" />
+              <img className="header-logo-image" src="https://cdn11.bigcommerce.com/s-uc987c51/images/stencil/147x41/pe-art-pevoniaonlywhitelogo-adj_large_1739207860__96355.original.png" alt="Pevonia Global" title="Pevonia Global" />
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            {/* <button
+            <button
               onClick={toggleTheme}
               className="p-2 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
@@ -30,7 +44,7 @@ const Header: React.FC = () => {
                   <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
                 </svg>
               )}
-            </button> */}
+            </button>
             <div className="relative">
               <div className="flex items-center space-x-3">
                 <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
