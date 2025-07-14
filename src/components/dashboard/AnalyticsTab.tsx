@@ -1,6 +1,7 @@
 // src/components/dashboard/AnalyticsTab.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { getInteractionCountAnalytics, getTotalTimeSpendingByElement, getUserAnalytics } from '../../services/user';
+import { BOOTHID } from '../../utils/data';
+import { getInteractionCountAnalytics, getTotalTimeSpendingByElement, getUserAnalytics, fetchAnalyticsData } from '../../services/user';
 import type { ElementInteractionCount, ElementTimeSpent, FilterOptions, UserAnalytics } from '../../types/user';
 import Card from '../ui/Card';
 
@@ -26,8 +27,12 @@ const AnalyticsTab: React.FC = () => {
   const [totalTimeSpent, setTotalTimeSpent] = useState<ElementTimeSpent[] | null>(null);
   const [totalInteractionCount, setTotalInteractionCount] = useState<ElementInteractionCount[] | null>(null);
   const [interactionFilter, setInteractionFilter] = useState<'today' | 'lastWeek' | 'lastMonth' | 'alltime'>('alltime');
+  const [analyticsFilter, setAnalyticsFilter] = useState<'all' | 'today' | 'week' | 'month' | 'year' | 'custom'>('all');
   const [chartsLoading, setChartsLoading] = useState<boolean>(true);
   const [interactionLoading, setInteractionLoading] = useState<boolean>(false);
+  const [analyticsLoading, setAnalyticsLoading] = useState<boolean>(false);
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
 
   // Refs for chart instances
   const pieRef = useRef<HTMLCanvasElement | null>(null);
@@ -37,6 +42,43 @@ const AnalyticsTab: React.FC = () => {
   const timeSpentChartInstance = useRef<Chart | null>(null);
   const interactionCountChartInstance = useRef<Chart | null>(null);
 
+  const fetchAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const data = await fetchAnalyticsData(
+        analyticsFilter,
+        customStartDate,
+        customEndDate
+      );
+      setAnalytics(data);
+    } catch (err) {
+      console.log('Error fetching analytics data:', err);
+      setError('Failed to load analytics data');
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  // Fetch interaction count analytics when filter changes
+  const fetchInteractionCountAnalytics = async (filter: 'today' | 'lastWeek' | 'lastMonth' | 'alltime') => {
+    try {
+      setInteractionLoading(true);
+      const filterOptions: FilterOptions = {
+        period: filter,
+        startDate: null,
+        endDate: null,
+      };
+      const data = await getInteractionCountAnalytics(filterOptions);
+      console.log('Interaction count data:', data);
+      setTotalInteractionCount(data);
+    } catch (err) {
+      console.error('Error fetching interaction count data:', err);
+      setError('Failed to load interaction count data');
+    } finally {
+      setInteractionLoading(false);
+    }
+  };
+
   // Fetch all initial data
   useEffect(() => {
     const fetchAllInitialData = async () => {
@@ -45,8 +87,7 @@ const AnalyticsTab: React.FC = () => {
         setChartsLoading(true);
         
         // Fetch all data in parallel
-        const [analyticsData, timeSpentData, interactionData] = await Promise.all([
-          getUserAnalytics(),
+        const [timeSpentData, interactionData] = await Promise.all([
           getTotalTimeSpendingByElement(),
           getInteractionCountAnalytics({
             period: 'alltime',
@@ -56,16 +97,20 @@ const AnalyticsTab: React.FC = () => {
         ]);
 
         // Set all data at once to prevent multiple re-renders
-        setAnalytics(analyticsData);
+        console.log("Total Time Spent Data:", timeSpentData);
+        console.log("Initial Interaction Data:", interactionData);
+        
         setTotalTimeSpent(timeSpentData);
         setTotalInteractionCount(interactionData);
-        setChartsLoading(false);
+        
+        // Fetch initial analytics data
+        await fetchAnalytics();
         
       } catch (err) {
         console.error('Error fetching initial data:', err);
         setError('Failed to load analytics data');
-        setChartsLoading(false);
       } finally {
+        setChartsLoading(false);
         setLoading(false);
       }
     };
@@ -73,38 +118,25 @@ const AnalyticsTab: React.FC = () => {
     fetchAllInitialData();
   }, []);
 
-  // Fetch interaction count analytics when filter changes (skip initial alltime load)
+  // Fetch analytics when filter changes
   useEffect(() => {
-    // Skip if initial load or charts still loading
-    
-    const fetchInteractionCountAnalytics = async () => {
-      try {
-        setInteractionLoading(true);
-        const filterOptions: FilterOptions = {
-          period: interactionFilter,
-          startDate: null,
-          endDate: null,
-        };
-        const data = await getInteractionCountAnalytics(filterOptions);
-        setTotalInteractionCount(data);
-      } catch (err) {
-        console.error('Error fetching interaction count data:', err);
-        setError('Failed to load interaction count data');
-      } finally {
-        setInteractionLoading(false);
-      }
-    };
+    if (!loading) {
+      fetchAnalytics();
+    }
+  }, [analyticsFilter, customStartDate, customEndDate]);
 
-    fetchInteractionCountAnalytics();
-  }, [interactionFilter, chartsLoading]);
+  // Fetch interaction count analytics when filter changes
+  useEffect(() => {
+    if (!loading) {
+      fetchInteractionCountAnalytics(interactionFilter);
+    }
+  }, [interactionFilter]);
 
   // Location Data Pie Chart
   useEffect(() => {
-    if (!pieRef.current || !analytics?.locationData || chartsLoading) return;
+    if (!pieRef.current || !analytics?.locationData || chartsLoading || analyticsLoading) return;
 
-    // Small delay to ensure DOM is ready
     const timeoutId = setTimeout(() => {
-      // Destroy previous chart instance if exists
       if (chartInstance.current) {
         chartInstance.current.destroy();
         chartInstance.current = null;
@@ -115,7 +147,7 @@ const AnalyticsTab: React.FC = () => {
 
       try {
         const labels = analytics.locationData.map(loc => loc.location || 'Unknown');
-        const data = analytics.locationData.map(loc => loc.count);
+        const data = analytics.locationData.map(loc => loc.visits || loc.count);
         const backgroundColor = [
           '#3b82f6', '#10b981', '#f59e42', '#ef4444', '#a78bfa', '#f472b6', '#facc15', '#34d399',
           '#6366f1', '#fbbf24', '#e11d48', '#14b8a6'
@@ -159,15 +191,13 @@ const AnalyticsTab: React.FC = () => {
         chartInstance.current = null;
       }
     };
-  }, [analytics?.locationData, chartsLoading]);
+  }, [analytics?.locationData, chartsLoading, analyticsLoading]);
 
-  // Total Time Spent Donut Chart
+  // Total Time Spent Donut Chart - FIXED
   useEffect(() => {
     if (!timeSpentRef.current || !totalTimeSpent || chartsLoading) return;
 
-    // Small delay to ensure DOM is ready
     const timeoutId = setTimeout(() => {
-      // Destroy previous chart if exists
       if (timeSpentChartInstance.current) {
         timeSpentChartInstance.current.destroy();
         timeSpentChartInstance.current = null;
@@ -177,15 +207,24 @@ const AnalyticsTab: React.FC = () => {
       if (!ctx) return;
 
       try {
-        // Filter out items where elementType is 'space' (case-insensitive)
-        const filteredTimeSpent = totalTimeSpent.filter(
-          item => (item.elementType || '').toLowerCase() !== 'space'
-        );
+        // Filter out 'space' elements and ensure we have valid data
+        const filteredTimeSpent = totalTimeSpent.filter(item => {
+          const elementType = (item.elementType || '').toLowerCase();
+          const timeSpent = item.totalTimeSpent || 0;
+          return elementType !== 'space' && timeSpent > 0;
+        });
 
-        if (filteredTimeSpent.length === 0) return;
+        console.log('Filtered time spent data:', filteredTimeSpent);
+
+        if (filteredTimeSpent.length === 0) {
+          console.log('No valid time spent data to display');
+          return;
+        }
 
         const labels = filteredTimeSpent.map(item => item.elementType || 'Unknown');
-        const data = filteredTimeSpent.map(item => Math.round((item.totalTimeSpent || 0) / 60000)); // Convert to minutes
+        const data = filteredTimeSpent.map(item => Math.round((item.totalTimeSpent || 0) / 60000));
+        
+        console.log('Time spent chart data:', { labels, data });
         
         const backgroundColor = [
           '#6366f1', '#10b981', '#f59e42', '#ef4444', '#a78bfa', '#f472b6', '#facc15', '#34d399',
@@ -253,13 +292,11 @@ const AnalyticsTab: React.FC = () => {
     };
   }, [totalTimeSpent, chartsLoading]);
 
-  // Total Interaction Count Chart
+  // Total Interaction Count Chart - FIXED
   useEffect(() => {
-    if (!interactionCountRef.current || !totalInteractionCount || interactionLoading) return;
+    if (!interactionCountRef.current || chartsLoading) return;
 
-    // Small delay to ensure DOM is ready
     const timeoutId = setTimeout(() => {
-      // Destroy previous chart if exists
       if (interactionCountChartInstance.current) {
         interactionCountChartInstance.current.destroy();
         interactionCountChartInstance.current = null;
@@ -269,8 +306,30 @@ const AnalyticsTab: React.FC = () => {
       if (!ctx) return;
 
       try {
-        const labels = totalInteractionCount.map(item => item.element || 'Unknown');
-        const data = totalInteractionCount.map(item => item.count || 0);
+        // Check if we have valid interaction data
+        if (!totalInteractionCount || totalInteractionCount.length === 0) {
+          console.log('No interaction count data available');
+          return;
+        }
+
+        // Filter out invalid data
+        const validInteractionData = totalInteractionCount.filter(item => {
+          const count = item.count || 0;
+          const element = item.element || '';
+          return count > 0 && element.trim() !== '';
+        });
+
+        console.log('Valid interaction data:', validInteractionData);
+
+        if (validInteractionData.length === 0) {
+          console.log('No valid interaction data to display');
+          return;
+        }
+
+        const labels = validInteractionData.map(item => item.element || 'Unknown');
+        const data = validInteractionData.map(item => item.count || 0);
+
+        console.log('Interaction chart data:', { labels, data });
 
         interactionCountChartInstance.current = new Chart(ctx, {
           type: 'bar',
@@ -315,7 +374,7 @@ const AnalyticsTab: React.FC = () => {
         interactionCountChartInstance.current = null;
       }
     };
-  }, [totalInteractionCount, interactionLoading]);
+  }, [totalInteractionCount, chartsLoading, interactionLoading]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -339,6 +398,21 @@ const AnalyticsTab: React.FC = () => {
     setInteractionFilter(filter);
   };
 
+  const handleAnalyticsFilterChange = (filter: 'all' | 'today' | 'week' | 'month' | 'year' | 'custom') => {
+    setAnalyticsFilter(filter);
+    if (filter !== 'custom') {
+      setCustomStartDate('');
+      setCustomEndDate('');
+    }
+  };
+
+  const formatHours = (hours: number) => {
+    if (hours < 1) {
+      return `${Math.round(hours * 60)} min`;
+    }
+    return `${hours.toFixed(1)} hr`;
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -360,6 +434,53 @@ const AnalyticsTab: React.FC = () => {
     <div className="p-6">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Analytics Dashboard</h1>
       
+      {/* Analytics Filter Controls */}
+      <div className="mb-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+        <div className="flex flex-wrap gap-2 mb-4">
+          {['all','year', 'month','week','today','custom'].map((filterOption) => (
+            <button
+              key={filterOption}
+              onClick={() => handleAnalyticsFilterChange(filterOption as any)}
+              disabled={analyticsLoading}
+              className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                analyticsFilter === filterOption
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+              } ${analyticsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {filterOption.charAt(0).toUpperCase() + filterOption.slice(1)}
+            </button>
+          ))}
+        </div>
+        
+        {/* Custom Date Range */}
+        {analyticsFilter === 'custom' && (
+          <div className="flex gap-4 items-center">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <label className="text-gray-700 dark:text-gray-300 font-medium">From:</label>
+              <input
+                type="datetime-local"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-gray-700 dark:text-gray-300 font-medium">To:</label>
+              <input
+                type="datetime-local"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+      
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Total Users Card */}
@@ -372,7 +493,13 @@ const AnalyticsTab: React.FC = () => {
             </div>
             <div className="ml-5">
               <p className="text-sm font-medium uppercase">Total Users</p>
-              <p className="text-3xl font-bold">{analytics?.totalUsers || 0}</p>
+              <p className="text-3xl font-bold">
+                {analyticsLoading ? (
+                  <div className="animate-pulse bg-blue-400 h-8 w-16 rounded"></div>
+                ) : (
+                  (analytics?.totalUsers || 0).toLocaleString()
+                )}
+              </p>
             </div>
           </div>
         </Card>
@@ -388,35 +515,42 @@ const AnalyticsTab: React.FC = () => {
             </div>
             <div className="ml-5">
               <p className="text-sm font-medium uppercase">Total Visits</p>
-              <p className="text-3xl font-bold">{analytics?.totalVisits || 0}</p>
+              <p className="text-3xl font-bold">
+                {analyticsLoading ? (
+                  <div className="animate-pulse bg-green-400 h-8 w-16 rounded"></div>
+                ) : (
+                  (analytics?.totalVisits || 0).toLocaleString()
+                )}
+              </p>
             </div>
           </div>
         </Card>
         
         {/* Total Time Spent Card */}
-        <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+        <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
           <div className="flex items-center">
-            <div className="p-3 rounded-full bg-orange-600 bg-opacity-30">
+            <div className="p-3 rounded-full bg-purple-600 bg-opacity-30">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <div className="ml-5">
-              <p className="text-sm font-medium uppercase">Total Watch Hours</p>
+              <p className="text-sm font-medium uppercase">Total Hours Spent</p>
               <p className="text-3xl font-bold">
-                {totalTimeSpent ? 
-                  Math.round(totalTimeSpent.reduce((acc, item) => acc + (item.totalTimeSpent || 0), 0) / 3600000).toLocaleString() + ' hr' 
-                  : '0 hr'
-                }
+                {analyticsLoading ? (
+                  <div className="animate-pulse bg-purple-400 h-8 w-16 rounded"></div>
+                ) : (
+                  formatHours(analytics?.totalHours || 0)
+                )}
               </p>
             </div>
           </div>
         </Card>
         
         {/* Average Visits Per User Card */}
-        <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+        <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
           <div className="flex items-center">
-            <div className="p-3 rounded-full bg-purple-600 bg-opacity-30">
+            <div className="p-3 rounded-full bg-orange-600 bg-opacity-30">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
@@ -424,7 +558,11 @@ const AnalyticsTab: React.FC = () => {
             <div className="ml-5">
               <p className="text-sm font-medium uppercase">Avg. Visits Per User</p>
               <p className="text-3xl font-bold">
-                {analytics ? (analytics.totalUsers > 0 ? (analytics.totalVisits / analytics.totalUsers).toFixed(2) : '0.00') : '0.00'}
+                {analyticsLoading ? (
+                  <div className="animate-pulse bg-orange-400 h-8 w-16 rounded"></div>
+                ) : (
+                  analytics ? (analytics.totalUsers > 0 ? (analytics.totalVisits / analytics.totalUsers).toFixed(2) : '0.00') : '0.00'
+                )}
               </p>
             </div>
           </div>
@@ -436,7 +574,7 @@ const AnalyticsTab: React.FC = () => {
         {/* Location Data Pie Chart */}
         <Card title="Global Reach" className="lg:col-span-1">
           <div className="flex flex-col items-center py-6">
-            {chartsLoading ? (
+            {chartsLoading || analyticsLoading ? (
               <div className="flex justify-center items-center h-64 w-full">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
               </div>
@@ -460,7 +598,7 @@ const AnalyticsTab: React.FC = () => {
                           ></span>
                           <span className="text-sm">{loc.location || 'Unknown'}</span>
                         </span>
-                        <span className="font-medium text-sm">{loc.count}</span>
+                        <span className="font-medium text-sm">{loc.visits || loc.count}</span>
                       </li>
                     ))}
                   </ul>
@@ -481,7 +619,11 @@ const AnalyticsTab: React.FC = () => {
               <div className="flex justify-center items-center h-64 w-full">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
               </div>
-            ) : totalTimeSpent && totalTimeSpent.filter(item => (item.elementType || '').toLowerCase() !== 'space').length > 0 ? (
+            ) : totalTimeSpent && totalTimeSpent.filter(item => {
+              const elementType = (item.elementType || '').toLowerCase();
+              const timeSpent = item.totalTimeSpent || 0;
+              return elementType !== 'space' && timeSpent > 0;
+            }).length > 0 ? (
               <div className="w-full h-full">
                 <canvas ref={timeSpentRef} />
               </div>

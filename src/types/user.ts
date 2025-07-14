@@ -24,6 +24,7 @@ export interface UserData {
 export interface UserAnalytics {
   totalUsers: number;
   totalVisits: number;
+  totalHours?: number;
   locationData: {
     location: string;
     count: number;

@@ -10,7 +10,22 @@ export const getAllUsers = async (params: PaginationParams): Promise<PaginatedUs
 
 export const getUserAnalytics = async (): Promise<UserAnalytics> => {
   const response = await api.get(`/admin/${BOOTHID}/users/analytics`);
+  console.log("user analytics",response.data);
   return response.data;
+};
+
+export const fetchAnalyticsData = async (
+ 
+  analyticsFilter: string,
+  customStartDate?: string,
+  customEndDate?: string
+) => {
+  let url = `/admin/${BOOTHID}/users/analytics?filter=${analyticsFilter}`;
+  if (analyticsFilter === 'custom' && customStartDate && customEndDate) {
+    url += `&startDate=${customStartDate}&endDate=${customEndDate}`;
+  }
+  const response = await api.get(url) ;
+  return  response.data;
 };
 
 

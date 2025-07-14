@@ -1,13 +1,15 @@
 // src/components/dashboard/UsersTab.tsx
 import React, { useState, useEffect } from 'react';
+import { saveAs } from 'file-saver';
 import { getAllUsers, getIntractionsByUserId, getUserAnalytics, getSpendingTimeByUserId } from '../../services/user';
 import type { UserData, UserAnalytics, Interaction, TimeSpent, PaginationParams, PaginatedUsers } from '../../types/user';
 import { formatInteractionDescription, getInteractionDetails } from '../../utils/Interactions';
 import Card from '../ui/Card';
 import Button from '../ui/button';
 import Dialog from '../ui/Dialog';
-import { getTimeAgo } from '../../utils/timeAgo';
+
 import { convertUTCToLocalTime } from '../../utils/timeUtils';
+
 
 // import EmailAnalytics from './EmailAnalytics';
 
@@ -574,6 +576,34 @@ const UsersTab: React.FC = () => {
     );
   };
 
+  // Helper function to convert users to CSV
+  const usersToCSV = (users: UserData[]) => {
+    const headers = [
+      'Username',
+      'Email',
+      'Phone Number',
+      'Contact Title',
+      'City',
+      'State',
+      'Location',
+      'Visits'
+    ];
+    const rows = users.map(user => [
+      user.username,
+      user.email,
+      user.phoneNumber || '',
+      user.contactTitle || '',
+      user.city || '',
+      user.state || '',
+      user.location || '',
+      user.visitCount
+    ]);
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+      .join('\r\n');
+    return csvContent;
+  };
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">User Management</h1>
@@ -604,6 +634,20 @@ const UsersTab: React.FC = () => {
       </div>
 
       {/* Users Table */}
+      <div className="flex justify-end mb-4">
+        <Button
+          variant="outline"
+          className="text-sm bg-gradient-to-r from-green-500 to-green-600"
+          onClick={() => {
+            const csv = usersToCSV(filteredUsers ?? []);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            saveAs(blob, 'users.csv');
+          }}
+          disabled={!filteredUsers || filteredUsers.length === 0}
+        >
+          Download CSV
+        </Button>
+      </div>
       <Card title={`Users (${(filteredUsers ?? []).length})`}>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
