@@ -27,7 +27,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               </svg>
             </button>
             <div className="flex-shrink-0 flex items-center">
-              <img className="header-logo-image" src="https://cdn11.bigcommerce.com/s-uc987c51/images/stencil/147x41/pe-art-pevoniaonlywhitelogo-adj_large_1739207860__96355.original.png" alt="Pevonia Global" title="Pevonia Global" />
+              <img className="header-logo-image h-16" src="/image001.gif" alt="Pevonia Global" title="Pevonia Global" />
             </div>
           </div>
           <div className="flex items-center space-x-4">

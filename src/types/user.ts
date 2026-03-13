@@ -15,6 +15,13 @@ export interface UserData {
   visitCount: number;
   location?: string;
   createdAt: string;  // ISO date string
+  isWonSpinWealReward?: boolean;
+  reward?: {
+    id: number;
+    rewardName: string;
+    rewardDescription: string;
+    isActive: boolean;
+  };
   recentEntryTime?: string; // ISO date string
   recentExitTime?: string; // ISO date string 
   totalWatchingMinutes?: number;
@@ -27,6 +34,7 @@ export interface UserAnalytics {
   totalHours?: number;
   locationData: {
     location: string;
+    visits?:number
     count: number;
   }[];
 }

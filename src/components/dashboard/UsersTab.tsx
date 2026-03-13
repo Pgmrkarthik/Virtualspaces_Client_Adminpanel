@@ -1,22 +1,41 @@
 // src/components/dashboard/UsersTab.tsx
-import React, { useState, useEffect } from 'react';
-import { saveAs } from 'file-saver';
-import { getAllUsers, getIntractionsByUserId, getUserAnalytics, getSpendingTimeByUserId } from '../../services/user';
-import type { UserData, UserAnalytics, Interaction, TimeSpent, PaginationParams, PaginatedUsers } from '../../types/user';
-import { formatInteractionDescription, getInteractionDetails } from '../../utils/Interactions';
-import Card from '../ui/Card';
-import Button from '../ui/button';
-import Dialog from '../ui/Dialog';
+import React, { useState, useEffect } from "react";
+import { saveAs } from "file-saver";
+import {
+  getAllUsers,
+  getIntractionsByUserId,
+  getUserAnalytics,
+  getSpendingTimeByUserId,
+} from "../../services/user";
+import type {
+  UserData,
+  UserAnalytics,
+  Interaction,
+  TimeSpent,
+  PaginationParams,
+  PaginatedUsers,
+} from "../../types/user";
+import {
+  formatInteractionDescription,
+  getInteractionDetails,
+} from "../../utils/Interactions";
+import Card from "../ui/Card";
+import Button from "../ui/button";
+import Dialog from "../ui/Dialog";
 
-import { convertUTCToLocalTime } from '../../utils/timeUtils';
-
+import { convertUTCToLocalTime } from "../../utils/timeUtils";
 
 // import EmailAnalytics from './EmailAnalytics';
 
 // Define filter types
-type InteractionFilterType = 'all' | 'pdf' | 'video' | 'image' | 'session' | 'entry' | 'exit';
-
-
+type InteractionFilterType =
+  | "all"
+  | "pdf"
+  | "video"
+  | "image"
+  | "session"
+  | "entry"
+  | "exit";
 
 const UsersTab: React.FC = () => {
   const [users, setUsers] = useState<PaginatedUsers>();
@@ -25,24 +44,38 @@ const UsersTab: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
 
   const [interactions, setInteractions] = useState<Interaction[]>([]);
-  const [filteredInteractions, setFilteredInteractions] = useState<Interaction[]>([]);
-  const [selectedFilter, setSelectedFilter] = useState<InteractionFilterType>('all');
+  const [filteredInteractions, setFilteredInteractions] = useState<
+    Interaction[]
+  >([]);
+  const [selectedFilter, setSelectedFilter] =
+    useState<InteractionFilterType>("all");
   const [analyticsLoading, setAnalyticsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>("");
 
   const [showEnrichDialog, setShowEnrichDialog] = useState(false);
   const [enrichedUser, setEnrichedUser] = useState<UserData | null>(null);
   const [totalTimeSpent, setTotalTimeSpent] = useState<TimeSpent[]>([]);
 
-   const [paginationParams, setPaginationParams] = useState<PaginationParams>({
+  const [paginationParams, setPaginationParams] = useState<PaginationParams>({
     page: 0,
-    size: 10,
-    sortBy: 'recentEntryTime',
-    sortDir: 'desc',
+    size: 20,
+    sortBy: "recentEntryTime",
+    sortDir: "desc",
   });
 
-  const handleEnrichClick = (e: React.MouseEvent<HTMLButtonElement>, user: UserData) => {
+  const [frontendSort, setFrontendSort] = useState<{
+    key: string;
+    direction: "asc" | "desc";
+  } | null>(null);
+  const [interactionSortDir, setInteractionSortDir] = useState<"asc" | "desc">(
+    "desc",
+  );
+
+  const handleEnrichClick = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    user: UserData,
+  ) => {
     e.stopPropagation();
     setEnrichedUser(user);
     setShowEnrichDialog(true);
@@ -56,10 +89,11 @@ const UsersTab: React.FC = () => {
     const fetchUsers = async () => {
       try {
         const data = await getAllUsers(paginationParams);
+        console.log("Fetched users:", data);
         setUsers(data);
       } catch (err) {
-        console.error('Error fetching users:', err);
-        setError('Failed to load user data');
+        console.error("Error fetching users:", err);
+        setError("Failed to load user data");
       } finally {
         setLoading(false);
       }
@@ -70,7 +104,7 @@ const UsersTab: React.FC = () => {
         const data = await getUserAnalytics();
         setAnalytics(data);
       } catch (err) {
-        console.error('Error fetching analytics:', err);
+        console.error("Error fetching analytics:", err);
         // Don't show error for analytics, just log it
       }
     };
@@ -79,21 +113,70 @@ const UsersTab: React.FC = () => {
     fetchAnalytics();
   }, [paginationParams]);
 
-  // Pagination effect 
+  // Pagination effect
 
   const handlePageChange = (newPage: number) => {
-    setPaginationParams(prev => ({ ...prev, page: newPage }));
+    setPaginationParams((prev) => ({ ...prev, page: newPage }));
   };
 
   const handleSizeChange = (newSize: number) => {
-    setPaginationParams(prev => ({ ...prev, size: newSize, page: 0 }));
+    setPaginationParams((prev) => ({ ...prev, size: newSize, page: 0 }));
   };
 
-  const handleSortChange = (sortBy: string, sortDir: 'asc' | 'desc') => {
-    setPaginationParams(prev => ({ ...prev, sortBy, sortDir, page: 0 }));
+  const handleSortChange = (sortBy: string, sortDir: "asc" | "desc") => {
+    setPaginationParams((prev) => ({ ...prev, sortBy, sortDir, page: 0 }));
   };
 
+  const handleColumnSort = (columnName: string) => {
+    setFrontendSort((current) => {
+      if (current?.key === columnName) {
+        return {
+          key: columnName,
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return { key: columnName, direction: "desc" };
+    });
+  };
 
+  const renderSortableHeader = (label: string, field: string) => {
+    const isActive = frontendSort?.key === field;
+    const direction = frontendSort?.direction;
+    return (
+      <th
+        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        onClick={() => handleColumnSort(field)}
+      >
+        <div className="flex items-center space-x-1">
+          <span>{label}</span>
+          <span className="flex flex-col -space-y-[0px] ml-1">
+            <svg
+              className={`w-3 h-3 ${isActive && direction === "asc" ? "text-blue-500" : "text-gray-300 dark:text-gray-500"}`}
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <svg
+              className={`w-3 h-3 ${isActive && direction === "desc" ? "text-blue-500" : "text-gray-300 dark:text-gray-500"}`}
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </span>
+        </div>
+      </th>
+    );
+  };
 
   const renderPagination = () => {
     if (!users || users.totalPages <= 1) return null;
@@ -135,18 +218,22 @@ const UsersTab: React.FC = () => {
         <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
           <div className="flex items-center space-x-4">
             <p className="text-sm text-gray-700 dark:text-gray-300">
-              Showing{' '}
-              <span className="font-medium">{currentPage * users.size + 1}</span>
-              {' '}to{' '}
+              Showing{" "}
+              <span className="font-medium">
+                {currentPage * users.size + 1}
+              </span>{" "}
+              to{" "}
               <span className="font-medium">
                 {Math.min((currentPage + 1) * users.size, users.totalElements)}
-              </span>
-              {' '}of{' '}
-              <span className="font-medium">{users.totalElements}</span>
-              {' '}results
+              </span>{" "}
+              of <span className="font-medium">{users.totalElements}</span>{" "}
+              results
             </p>
             <div className="flex items-center space-x-2">
-              <label htmlFor="pageSize" className="text-sm text-gray-700 dark:text-gray-300">
+              <label
+                htmlFor="pageSize"
+                className="text-sm text-gray-700 dark:text-gray-300"
+              >
                 Show:
               </label>
               <select
@@ -163,7 +250,10 @@ const UsersTab: React.FC = () => {
             </div>
           </div>
           <div>
-            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+            <nav
+              className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+              aria-label="Pagination"
+            >
               <button
                 onClick={() => handlePageChange(0)}
                 disabled={users.first}
@@ -171,7 +261,7 @@ const UsersTab: React.FC = () => {
               >
                 First
               </button>
-              
+
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={users.first}
@@ -180,14 +270,14 @@ const UsersTab: React.FC = () => {
                 Previous
               </button>
 
-              {pages.map(page => (
+              {pages.map((page) => (
                 <button
                   key={page}
                   onClick={() => handlePageChange(page)}
                   className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                     page === currentPage
-                      ? 'z-10 bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400'
-                      : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      ? "z-10 bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400"
+                      : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
                   }`}
                 >
                   {page + 1}
@@ -216,47 +306,30 @@ const UsersTab: React.FC = () => {
     );
   };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   // Apply filters to interactions whenever interactions or selectedFilter change
   useEffect(() => {
-    if (selectedFilter === 'all') {
+    if (selectedFilter === "all") {
       setFilteredInteractions(interactions);
       return;
     }
 
     // Apply the filter
-    const filtered = interactions.filter(interaction => {
-      const actionType = interaction.actionType?.toLowerCase() || '';
+    const filtered = interactions.filter((interaction) => {
+      const actionType = interaction.actionType?.toLowerCase() || "";
 
       switch (selectedFilter) {
-        case 'pdf':
-          return actionType.includes('pdf');
-        case 'video':
-          return actionType.includes('video');
-        case 'image':
-          return actionType.includes('image');
-        case 'session':
-          return actionType.includes('space');
-        case 'entry':
-          return actionType.includes('entry');
-        case 'exit':
-          return actionType.includes('exit');
+        case "pdf":
+          return actionType.includes("pdf");
+        case "video":
+          return actionType.includes("video");
+        case "image":
+          return actionType.includes("image");
+        case "session":
+          return actionType.includes("space");
+        case "entry":
+          return actionType.includes("entry");
+        case "exit":
+          return actionType.includes("exit");
         default:
           return true;
       }
@@ -276,7 +349,7 @@ const UsersTab: React.FC = () => {
 
     setSelectedUser(user);
     setAnalyticsLoading(true);
-    setSelectedFilter('all');
+    setSelectedFilter("all");
     setTotalTimeSpent([]); // Reset
 
     try {
@@ -287,34 +360,34 @@ const UsersTab: React.FC = () => {
       const res = await getSpendingTimeByUserId(user.id);
       setTotalTimeSpent(res);
       setAnalyticsLoading(false);
-      console.log('User interactions:', fetchedInteractions);
+      console.log("User interactions:", fetchedInteractions);
     } catch (err) {
-      console.error('Error fetching user interactions:', err);
-      setError('Failed to load user interactions');
+      console.error("Error fetching user interactions:", err);
+      setError("Failed to load user interactions");
       setAnalyticsLoading(false);
     }
   };
 
   // Helper function to count interaction types
   const countInteractionsByType = (type: InteractionFilterType) => {
-    if (type === 'all') return interactions.length;
+    if (type === "all") return interactions.length;
 
-    return interactions.filter(interaction => {
-      const actionType = interaction.actionType?.toLowerCase() || '';
+    return interactions.filter((interaction) => {
+      const actionType = interaction.actionType?.toLowerCase() || "";
 
       switch (type) {
-        case 'pdf':
-          return actionType.includes('pdf');
-        case 'video':
-          return actionType.includes('video');
-        case 'image':
-          return actionType.includes('image');
-        case 'session':
-          return actionType.includes('space');
-        case 'entry':
-          return actionType.includes('entry');
-        case 'exit':
-          return actionType.includes('exit');
+        case "pdf":
+          return actionType.includes("pdf");
+        case "video":
+          return actionType.includes("video");
+        case "image":
+          return actionType.includes("image");
+        case "session":
+          return actionType.includes("space");
+        case "entry":
+          return actionType.includes("entry");
+        case "exit":
+          return actionType.includes("exit");
         default:
           return false;
       }
@@ -329,36 +402,83 @@ const UsersTab: React.FC = () => {
       return details.text;
     }
 
-    let badgeClasses = "px-2 inline-flex text-xs leading-5 font-semibold rounded-full ";
+    let badgeClasses =
+      "px-2 inline-flex text-xs leading-5 font-semibold rounded-full ";
 
     switch (details.badgeType) {
-      case 'success':
-        badgeClasses += "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      case "success":
+        badgeClasses +=
+          "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
         break;
-      case 'warning':
-        badgeClasses += "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+      case "warning":
+        badgeClasses +=
+          "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
         break;
-      case 'error':
-        badgeClasses += "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+      case "error":
+        badgeClasses +=
+          "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
         break;
-      case 'info':
+      case "info":
       default:
-        badgeClasses += "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+        badgeClasses +=
+          "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
         break;
     }
 
-    return (
-      <span className={badgeClasses}>
-        {details.text}
-      </span>
-    );
+    return <span className={badgeClasses}>{details.text}</span>;
   };
 
-  const filteredUsers = users?.content.filter(user =>
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.location && user.location.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const getSortedUsers = () => {
+    let sortedUsers =
+      users?.content.filter(
+        (user) =>
+          user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (user.location &&
+            user.location.toLowerCase().includes(searchTerm.toLowerCase())),
+      ) || [];
+
+    if (frontendSort) {
+      sortedUsers.sort((a, b) => {
+        let valA: any = a[frontendSort.key as keyof UserData];
+        let valB: any = b[frontendSort.key as keyof UserData];
+
+        if (frontendSort.key === "isWonSpinWealReward") {
+          valA = valA ? 1 : 0;
+          valB = valB ? 1 : 0;
+        } else if (frontendSort.key === "recentEntryTime") {
+          valA = valA ? new Date(valA).getTime() : 0;
+          valB = valB ? new Date(valB).getTime() : 0;
+        }
+
+        if (valA === valB) return 0;
+
+        const isAsc = frontendSort.direction === "asc";
+        if (valA === undefined || valA === null) return isAsc ? -1 : 1;
+        if (valB === undefined || valB === null) return isAsc ? 1 : -1;
+
+        if (valA < valB) return isAsc ? -1 : 1;
+        if (valA > valB) return isAsc ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return sortedUsers;
+  };
+
+  const filteredUsers = getSortedUsers();
+
+  const getSortedInteractions = () => {
+    const sorted = [...filteredInteractions];
+    sorted.sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return interactionSortDir === "asc" ? timeA - timeB : timeB - timeA;
+    });
+    return sorted;
+  };
+
+  const sortedFilteredInteractions = getSortedInteractions();
 
   // Function to handle filter change
   const handleFilterChange = (filter: InteractionFilterType) => {
@@ -367,25 +487,25 @@ const UsersTab: React.FC = () => {
 
   // Helper function to get formatted interaction name
   const getFormattedInteractionName = (interaction: Interaction) => {
-    const actionType = interaction.actionType || '';
+    const actionType = interaction.actionType || "";
 
-    if (actionType.toLowerCase().includes('pdf')) {
+    if (actionType.toLowerCase().includes("pdf")) {
       // Extract number if available, otherwise generate from the id
       const match = actionType.match(/PDF_(\d+)/i);
       if (match && match[1]) {
         return `PDF_${match[1]}`;
       }
       // Use the last 1-2 characters of the ID to create a number
-      const idNumber = interaction.id.slice(-2).replace(/\D/g, '') || '1';
+      const idNumber = interaction.id.slice(-2).replace(/\D/g, "") || "1";
       return `PDF_${idNumber}`;
     }
 
-    if (actionType.toLowerCase().includes('video')) {
+    if (actionType.toLowerCase().includes("video")) {
       const match = actionType.match(/video(\d+)/i);
       if (match && match[1]) {
         return `Video ${match[1]}`;
       }
-      const idNumber = interaction.id.slice(-2).replace(/\D/g, '') || '1';
+      const idNumber = interaction.id.slice(-2).replace(/\D/g, "") || "1";
       return `Video ${idNumber}`;
     }
 
@@ -404,7 +524,9 @@ const UsersTab: React.FC = () => {
   // Returns formatted total duration spent on "Space" (actionType === 'Space', case-insensitive)
   const getTotalSpaceHours = (totalTimeSpent: TimeSpent[]) => {
     const totalMs = totalTimeSpent
-      .filter(item => item.actionType && item.actionType.toLowerCase() === 'space')
+      .filter(
+        (item) => item.actionType && item.actionType.toLowerCase() === "space",
+      )
       .reduce((sum, item) => sum + (item.duration || 0), 0);
     return formatDuration(totalMs);
   };
@@ -417,27 +539,35 @@ const UsersTab: React.FC = () => {
           <div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-white dark:bg-gray-900 p-4 rounded-lg">
-                <div className="text-sm text-gray-600 dark:text-gray-400">User Since</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  User Since
+                </div>
                 <div className="text-lg font-medium text-gray-900 dark:text-white">
                   {convertUTCToLocalTime(user.createdAt)}
                 </div>
               </div>
               <div className="bg-white dark:bg-gray-900 p-4 rounded-lg">
-                <div className="text-sm text-gray-600 dark:text-gray-400">Total Visits</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Total Visits
+                </div>
                 <div className="text-lg font-medium text-gray-900 dark:text-white">
                   {user.visitCount}
                 </div>
               </div>
               <div className="bg-white dark:bg-gray-900 p-4 rounded-lg">
-                <div className="text-sm text-gray-600 dark:text-gray-400">Total Hours Spent</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Total Hours Spent
+                </div>
                 <div className="text-lg font-medium text-gray-900 dark:text-white">
-                 {getTotalSpaceHours(totalTimeSpent)}
+                  {getTotalSpaceHours(totalTimeSpent)}
                 </div>
               </div>
             </div>
 
             <div className="mb-4">
-              <div className="font-semibold text-gray-800 dark:text-gray-200 mb-2">Time Spent:</div>
+              <div className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                Time Spent:
+              </div>
               {totalTimeSpent.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {totalTimeSpent.map((timeSpent) => (
@@ -446,7 +576,9 @@ const UsersTab: React.FC = () => {
                       className="bg-white dark:bg-gray-900 rounded-lg shadow p-4 flex flex-col items-center border border-gray-200 dark:border-gray-700"
                     >
                       <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                        {timeSpent.actionType === 'enter' ? 'Space' : timeSpent.actionType}
+                        {timeSpent.actionType === "enter"
+                          ? "Space"
+                          : timeSpent.actionType}
                       </div>
                       <div className="text-lg font-bold text-blue-600 dark:text-blue-300">
                         {formatDuration(timeSpent.duration)}
@@ -455,41 +587,44 @@ const UsersTab: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-gray-700 dark:text-gray-300">Not available</div>
+                <div className="text-gray-700 dark:text-gray-300">
+                  Not available
+                </div>
               )}
             </div>
-
-
-
-
 
             {/* Interaction Filter Tabs */}
             <div className="mb-4">
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 Recent Activities
                 <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
-                  ({filteredInteractions.length} of {interactions.length} activities)
+                  ({filteredInteractions.length} of {interactions.length}{" "}
+                  activities)
                 </span>
               </h3>
 
               <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-700">
                 {[
-                  { id: 'all', label: 'All' },
-                  { id: 'pdf', label: 'PDF' },
-                  { id: 'video', label: 'Video' },
-                  { id: 'image', label: 'Image' },
-                  { id: 'session', label: 'session' },
-                  
+                  { id: "all", label: "All" },
+                  { id: "pdf", label: "PDF" },
+                  { id: "video", label: "Video" },
+                  { id: "image", label: "Image" },
+                  { id: "session", label: "session" },
                 ].map((filter) => {
-                  const count = countInteractionsByType(filter.id as InteractionFilterType);
+                  const count = countInteractionsByType(
+                    filter.id as InteractionFilterType,
+                  );
                   return (
                     <button
                       key={filter.id}
-                      onClick={() => handleFilterChange(filter.id as InteractionFilterType)}
-                      className={`px-4 py-2 border-b-2 ${selectedFilter === filter.id
-                        ? 'border-blue-500 text-blue-600 dark:text-blue-400 font-medium'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                        } flex items-center`}
+                      onClick={() =>
+                        handleFilterChange(filter.id as InteractionFilterType)
+                      }
+                      className={`px-4 py-2 border-b-2 ${
+                        selectedFilter === filter.id
+                          ? "border-blue-500 text-blue-600 dark:text-blue-400 font-medium"
+                          : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                      } flex items-center`}
                     >
                       {filter.label}
                       {count > 0 && (
@@ -516,8 +651,41 @@ const UsersTab: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Activity
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Date & Time
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        onClick={() =>
+                          setInteractionSortDir((prev) =>
+                            prev === "asc" ? "desc" : "asc",
+                          )
+                        }
+                      >
+                        <div className="flex items-center space-x-1">
+                          <span>Date & Time</span>
+                          <span className="flex flex-col -space-y-[0px] ml-1">
+                            <svg
+                              className={`w-3 h-3 ${interactionSortDir === "asc" ? "text-blue-500" : "text-gray-300 dark:text-gray-600"}`}
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            <svg
+                              className={`w-3 h-3 ${interactionSortDir === "desc" ? "text-blue-500" : "text-gray-300 dark:text-gray-600"}`}
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </span>
+                        </div>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Details
@@ -525,16 +693,20 @@ const UsersTab: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
-                    {filteredInteractions.length > 0 ? (
-                      filteredInteractions.map((interaction) => (
+                    {sortedFilteredInteractions.length > 0 ? (
+                      sortedFilteredInteractions.map((interaction) => (
                         <tr key={interaction.id}>
                           <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
                             {getFormattedInteractionName(interaction)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                            {new Date(interaction.createdAt).toLocaleDateString()}
+                            {new Date(
+                              interaction.createdAt,
+                            ).toLocaleDateString()}
                             <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                              {new Date(interaction.createdAt).toLocaleTimeString()}
+                              {new Date(
+                                interaction.createdAt,
+                              ).toLocaleTimeString()}
                             </span>
                           </td>
                           <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
@@ -544,10 +716,13 @@ const UsersTab: React.FC = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={3} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                        <td
+                          colSpan={3}
+                          className="px-6 py-4 text-center text-gray-500 dark:text-gray-400"
+                        >
                           {interactions.length > 0
                             ? `No ${selectedFilter} interactions found for this user.`
-                            : 'No interactions found for this user.'}
+                            : "No interactions found for this user."}
                         </td>
                       </tr>
                     )}
@@ -557,7 +732,7 @@ const UsersTab: React.FC = () => {
             )}
 
             {/* Export or Actions section */}
-            <div className="mt-6 flex justify-end space-x-4">
+            {/* <div className="mt-6 flex justify-end space-x-4">
               <Button
                 variant="outline"
                 className="text-sm"
@@ -565,11 +740,11 @@ const UsersTab: React.FC = () => {
                   // Logic for exporting user data
                   alert('Export functionality will be implemented here');
                 }}
-                disabled
+                
               >
                 Export User Data
               </Button>
-            </div>
+            </div>  */}
           </div>
         </td>
       </tr>
@@ -579,37 +754,47 @@ const UsersTab: React.FC = () => {
   // Helper function to convert users to CSV
   const usersToCSV = (users: UserData[]) => {
     const headers = [
-      'Username',
-      'Email',
-      'Phone Number',
-      'Contact Title',
-      'City',
-      'State',
-      'Location',
-      'Visits'
+      "Name",
+      "Email",
+      "SPA Business Name",
+      "Contact Title",
+      "Reward",
+      "City",
+      "State",
+      "Location",
+      "Visits",
     ];
-    const rows = users.map(user => [
+    const rows = users.map((user) => [
       user.username,
       user.email,
-      user.phoneNumber || '',
-      user.contactTitle || '',
-      user.city || '',
-      user.state || '',
-      user.location || '',
-      user.visitCount
+      user.phoneNumber || "",
+      user.state || "",
+      user.reward ? user.reward.rewardName : "No Reward",
+      user.contactTitle || "",
+
+      user.city || "",
+      user.location || "",
+      user.visitCount,
     ]);
     const csvContent = [headers, ...rows]
-      .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
-      .join('\r\n');
+      .map((row) =>
+        row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(","),
+      )
+      .join("\r\n");
     return csvContent;
   };
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">User Management</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+        User Management
+      </h1>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+        <div
+          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+          role="alert"
+        >
           <strong className="font-bold">Error:</strong>
           <span className="block sm:inline"> {error}</span>
         </div>
@@ -626,8 +811,18 @@ const UsersTab: React.FC = () => {
             className="w-full px-4 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
           />
           <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg
+              className="h-5 w-5 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
           </div>
         </div>
@@ -640,8 +835,8 @@ const UsersTab: React.FC = () => {
           className="text-sm bg-gradient-to-r from-green-500 to-green-600"
           onClick={() => {
             const csv = usersToCSV(filteredUsers ?? []);
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            saveAs(blob, 'users.csv');
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            saveAs(blob, "users.csv");
           }}
           disabled={!filteredUsers || filteredUsers.length === 0}
         >
@@ -662,23 +857,18 @@ const UsersTab: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Spa Business Name
                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Contact Title
                 </th>
+                {renderSortableHeader("Reward", "isWonSpinWealReward")}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   City
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  State
+                  Country
                 </th>
-
-                
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Location
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Visits
-                </th>
+                {renderSortableHeader("Visits", "visitCount")}
+                {renderSortableHeader("Recent Entry", "recentEntryTime")}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Actions
                 </th>
@@ -690,40 +880,62 @@ const UsersTab: React.FC = () => {
                   <React.Fragment key={user.id}>
                     <tr
                       onClick={() => handleUserSelect(user)}
-                      className={`hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${selectedUser?.id === user.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${selectedUser?.id === user.id ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-gray-900 dark:text-white">{user.username}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">ID: {user.id.slice(0, 8)}...</div>
+                        <div className="font-medium text-gray-900 dark:text-white">
+                          {user.username}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {user.email}
                       </td>
-                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                        {user.phoneNumber || '—'}
-                      </td>
-                       {/* <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                        {user.spaBusinessName || '—'}
-                      </td> */}
-                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                        {user.state || '—'}
-                      </td>
-                     
-                    
                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                        {user.city || '—'}
+                        {user.phoneNumber || "—"}
                       </td>
-
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                        {user.contactTitle || '—'}
-                      </td>
-                     
-                     
                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                        {user.location || 'Unknown'}
+                        {user.state || "—"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.isWonSpinWealReward ? (
+                          <span
+                            className="inline-flex items-center text-green-600 dark:text-green-400 font-semibold"
+                            title={user.reward?.rewardDescription}
+                          >
+                            <svg
+                              className="h-5 w-5 mr-1"
+                              fill="none"
+                              viewBox="0 0 20 20"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 10l4 4 6-6"
+                              />
+                            </svg>
+                            {user.reward?.rewardName || "Yes"}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500 font-semibold">
+                            —
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.contactTitle || "—"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.location || "Unknown"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
                         {user.visitCount}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                        {user.recentEntryTime
+                          ? new Date(user.recentEntryTime).toLocaleString()
+                          : "—"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap flex space-x-2">
                         <Button
@@ -733,14 +945,16 @@ const UsersTab: React.FC = () => {
                           }}
                           className="text-sm"
                         >
-                          {selectedUser?.id === user.id ? "Hide Details" : "View Details"}
+                          {selectedUser?.id === user.id
+                            ? "Hide Details"
+                            : "View Details"}
                         </Button>
-                        <Button
+                        {/* <Button
                           onClick={(e) => handleEnrichClick(e, user)}
                           className="text-sm bg-orange-500 hover:bg-orange-600 text-white"
                         >
                           Enrich User
-                        </Button>
+                        </Button> */}
                       </td>
                     </tr>
                     {selectedUser?.id === user.id && renderUserDetails(user)}
@@ -748,7 +962,10 @@ const UsersTab: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={11} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                  <td
+                    colSpan={11}
+                    className="px-6 py-4 text-center text-gray-500 dark:text-gray-400"
+                  >
                     No users found. Try a different search term.
                   </td>
                 </tr>
@@ -756,7 +973,7 @@ const UsersTab: React.FC = () => {
             </tbody>
           </table>
         </div>
-          {renderPagination()}
+        {renderPagination()}
       </Card>
 
       {/* Enrich Dialog */}
@@ -778,7 +995,9 @@ const UsersTab: React.FC = () => {
       {/* No users message */}
       {users && users.content.length === 0 && (
         <div className="mt-8 text-center p-6 bg-gray-100 dark:bg-gray-800 rounded-lg">
-          <p className="text-gray-600 dark:text-gray-300">No users available.</p>
+          <p className="text-gray-600 dark:text-gray-300">
+            No users available.
+          </p>
         </div>
       )}
     </div>
